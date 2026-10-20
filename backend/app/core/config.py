@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -22,10 +22,14 @@ class Settings(BaseSettings):
         description="Active LLM model name, never hardcoded in service code",
     )
 
-    # Vector DB (ChromaDB)
+    # Vector DB & Embeddings (ChromaDB)
     CHROMA_PERSIST_DIR: str = Field(
         default="./chroma_db",
         description="Local directory path where ChromaDB collections are persisted",
+    )
+    EMBEDDING_MODEL_NAME: str = Field(
+        default="intfloat/multilingual-e5-base",
+        description="Embedding model name used for law articles and RAG retrieval",
     )
 
     # Relational DB & Auth (Supabase)
@@ -66,6 +70,34 @@ class Settings(BaseSettings):
         description="List of allowed CORS origins for Next.js frontend",
     )
 
+    def format_passage(self, text: str) -> str:
+        """Format a document passage for embedding. multilingual-e5 requires 'passage: ' prefix."""
+        if "e5" in self.EMBEDDING_MODEL_NAME.lower():
+            return f"passage: {text}"
+        return text
+
+    def format_query(self, query: str) -> str:
+        """Format a search query for embedding. multilingual-e5 requires 'query: ' prefix."""
+        if "e5" in self.EMBEDDING_MODEL_NAME.lower():
+            return f"query: {query}"
+        return query
+
 
 # Singleton settings instance
 settings = Settings()
+
+
+def format_passage(text: str, model_name: Optional[str] = None) -> str:
+    """Helper to prefix 'passage: ' if active model is multilingual-e5."""
+    active = model_name or settings.EMBEDDING_MODEL_NAME
+    if "e5" in active.lower():
+        return f"passage: {text}"
+    return text
+
+
+def format_query(query: str, model_name: Optional[str] = None) -> str:
+    """Helper to prefix 'query: ' if active model is multilingual-e5."""
+    active = model_name or settings.EMBEDDING_MODEL_NAME
+    if "e5" in active.lower():
+        return f"query: {query}"
+    return query
