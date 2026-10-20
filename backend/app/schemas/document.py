@@ -1,8 +1,10 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.schemas.common import LEGAL_DISCLAIMER
+
+FieldType = Literal["string", "number", "date", "tc_id", "iban"]
 
 
 class TemplateFieldSchema(BaseModel):
@@ -10,7 +12,10 @@ class TemplateFieldSchema(BaseModel):
 
     field_name: str = Field(..., description="Unique technical field key")
     label: str = Field(..., description="Human-readable label for UI form")
-    field_type: str = Field(default="string", description="Type of field (string, number, date)")
+    field_type: FieldType = Field(
+        default="string",
+        description="Type of field (string, number, date, tc_id, iban)",
+    )
     required: bool = Field(default=True, description="Whether field is strictly required")
     description: Optional[str] = Field(default=None, description="Guidance hint for user")
 
@@ -46,10 +51,32 @@ class DocumentGenerateRequest(BaseModel):
         ...,
         description="Case parameters extracted from chat or confirmed by user",
     )
-    pii: Dict[str, Any] = Field(
+    pii: Dict[str, Annotated[str, Field(max_length=500)]] = Field(
         ...,
-        description="Direct PII (full name, TC ID, address, IBAN) from frontend mini-form",
+        description="Direct PII from frontend mini-form; keys defined by the template's pii_fields",
     )
+
+
+class TemplateFieldErrors(BaseModel):
+    """Template field validation result. Holds field NAMES only, never values (KVKK)."""
+
+    missing: List[str] = Field(default_factory=list, description="Required fields not provided")
+    unknown: List[str] = Field(default_factory=list, description="PII keys not defined by the template")
+    invalid: List[str] = Field(default_factory=list, description="Fields failing type/format checks")
+
+    @property
+    def has_errors(self) -> bool:
+        return bool(self.missing or self.unknown or self.invalid)
+
+    def to_message(self) -> str:
+        parts = []
+        if self.missing:
+            parts.append(f"Eksik: {', '.join(self.missing)}")
+        if self.unknown:
+            parts.append(f"Tanımsız: {', '.join(self.unknown)}")
+        if self.invalid:
+            parts.append(f"Geçersiz: {', '.join(self.invalid)}")
+        return "; ".join(parts)
 
 
 class DocumentGenerateResponse(BaseModel):

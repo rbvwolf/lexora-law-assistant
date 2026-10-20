@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
-from app.core.security import mask_pii, sanitize_input
+from app.core.security import is_blank, mask_pii, sanitize_input
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.services.llm_service import llm_service
 from app.services.rag_service import rag_service
@@ -17,7 +17,13 @@ async def send_chat_message(request: ChatRequest) -> ChatResponse:
     3. Retrieve legal citations via article-based RAG
     4. Process intent classification and parameter extraction via LLM
     """
-    # Step 1: Input sanitization & injection check
+    # Step 1: Reject whitespace/invisible-only messages, then injection check
+    if is_blank(request.message):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error_code": "EMPTY_MESSAGE", "message": "Mesaj boş olamaz."},
+        )
+
     is_safe, sanitized_or_refusal = sanitize_input(request.message)
     if not is_safe:
         raise HTTPException(

@@ -1,17 +1,54 @@
 import logging
 import os
+import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.schemas.document import TemplateFieldSchema, TemplateSchema
+from app.schemas.document import FieldType, TemplateFieldErrors, TemplateFieldSchema, TemplateSchema
 
 logger = logging.getLogger(__name__)
 
 # Temporary directory for generated documents (auto-deleted after expiration)
 STORAGE_TEMP_DIR = Path("storage/temp")
 STORAGE_TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+TC_ID_RE = re.compile(r"^\d{11}$")
+IBAN_TR_RE = re.compile(r"^TR\d{24}$")
+
+
+def _is_blank(value: Any) -> bool:
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
+def _matches_type(value: Any, field_type: FieldType) -> bool:
+    """Format check per field type (no TC checksum by design)."""
+    if field_type == "tc_id":
+        return isinstance(value, str) and bool(TC_ID_RE.match(value))
+    if field_type == "iban":
+        return isinstance(value, str) and bool(IBAN_TR_RE.match(re.sub(r"\s+", "", value)))
+    if field_type == "number":
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, (int, float)):
+            return True
+        if isinstance(value, str):
+            try:
+                float(value)
+                return True
+            except ValueError:
+                return False
+        return False
+    if field_type == "date":
+        if not isinstance(value, str):
+            return False
+        try:
+            date.fromisoformat(value)
+            return True
+        except ValueError:
+            return False
+    return True
 
 
 class DocService:
@@ -32,10 +69,10 @@ class DocService:
                 ],
                 pii_fields=[
                     TemplateFieldSchema(field_name="kiraya_veren_ad_soyad", label="Kiraya Veren Adı Soyadı", field_type="string", required=True),
-                    TemplateFieldSchema(field_name="kiraya_veren_tc", label="Kiraya Veren TC Kimlik No", field_type="string", required=True),
+                    TemplateFieldSchema(field_name="kiraya_veren_tc", label="Kiraya Veren TC Kimlik No", field_type="tc_id", required=True),
                     TemplateFieldSchema(field_name="kiraci_ad_soyad", label="Kiracı Adı Soyadı", field_type="string", required=True),
-                    TemplateFieldSchema(field_name="kiraci_tc", label="Kiracı TC Kimlik No", field_type="string", required=False),
-                    TemplateFieldSchema(field_name="iban", label="Kiranın Yatırılacağı IBAN", field_type="string", required=True),
+                    TemplateFieldSchema(field_name="kiraci_tc", label="Kiracı TC Kimlik No", field_type="tc_id", required=False),
+                    TemplateFieldSchema(field_name="iban", label="Kiranın Yatırılacağı IBAN", field_type="iban", required=True),
                 ],
             ),
             "tuketici_ayipli_mal_ihtarname": TemplateSchema(
@@ -51,7 +88,7 @@ class DocService:
                 ],
                 pii_fields=[
                     TemplateFieldSchema(field_name="tuketici_ad_soyad", label="Tüketici Adı Soyadı", field_type="string", required=True),
-                    TemplateFieldSchema(field_name="tuketici_tc", label="Tüketici TC Kimlik No", field_type="string", required=True),
+                    TemplateFieldSchema(field_name="tuketici_tc", label="Tüketici TC Kimlik No", field_type="tc_id", required=True),
                     TemplateFieldSchema(field_name="satici_unvan", label="Satıcı Firma / Şirket Unvanı", field_type="string", required=True),
                 ],
             ),
@@ -65,17 +102,56 @@ class DocService:
         """Fetch template schema by ID."""
         return self.templates.get(template_id)
 
+    def validate_fields(
+        self,
+        template: TemplateSchema,
+        case_params: Dict[str, Any],
+        pii: Dict[str, str],
+    ) -> TemplateFieldErrors:
+        """Validate payload against the template's field definitions.
+
+        Unknown PII keys are rejected; unknown case_params keys are not (they come
+        from LLM output and are filtered out in generate_documents instead).
+        Result carries field names only, never values.
+        """
+        errors = TemplateFieldErrors()
+        pii_names = {f.field_name for f in template.pii_fields}
+        errors.unknown = sorted(k for k in pii if k not in pii_names)
+
+        for fields, payload in ((template.case_param_fields, case_params), (template.pii_fields, pii)):
+            for field in fields:
+                value = payload.get(field.field_name)
+                if _is_blank(value):
+                    if field.required:
+                        errors.missing.append(field.field_name)
+                    continue
+                if not _matches_type(value, field.field_type):
+                    errors.invalid.append(field.field_name)
+        return errors
+
+    def filter_case_params(self, template: TemplateSchema, case_params: Dict[str, Any]) -> Dict[str, Any]:
+        """Drop case_params keys not defined by the template, logging dropped key names only."""
+        allowed = {f.field_name for f in template.case_param_fields}
+        dropped = sorted(k for k in case_params if k not in allowed)
+        if dropped:
+            logger.info("Dropped undefined case_params keys for %s: %s", template.template_id, dropped)
+        return {k: v for k, v in case_params.items() if k in allowed}
+
     async def generate_documents(
         self,
         template_id: str,
         case_params: Dict[str, Any],
-        pii: Dict[str, Any],
+        pii: Dict[str, str],
     ) -> Tuple[str, str, str, datetime]:
         """Generate both .docx and .pdf files in parallel from unified data model.
 
         Returns:
             (file_id, docx_url, pdf_url, expires_at)
         """
+        template = self.get_template(template_id)
+        if template:
+            case_params = self.filter_case_params(template, case_params)
+
         file_id = str(uuid.uuid4())
         expires_at = datetime.now(timezone.utc) + timedelta(hours=2)
 
