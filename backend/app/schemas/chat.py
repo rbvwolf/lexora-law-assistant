@@ -15,8 +15,19 @@ class Citation(BaseModel):
 class ChatRequest(BaseModel):
     """User incoming chat message payload."""
 
-    session_id: str = Field(..., description="Unique conversational session identifier")
-    message: str = Field(..., min_length=1, description="User's query or case description")
+    session_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Unique conversational session identifier",
+    )
+    # Upper bound protects Groq token limits
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=4000,
+        description="User's query or case description",
+    )
 
 
 class ChatResponse(BaseModel):

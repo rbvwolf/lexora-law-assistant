@@ -86,6 +86,27 @@ async def test_chat_prompt_injection_refusal():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("message", ["   ", "\n\t", "​​", " ﻿ ​ "])
+async def test_chat_blank_message_returns_empty_message(message):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = {"session_id": "test_session_blank", "message": message}
+        response = await client.post("/api/v1/chat/message", json=payload)
+        assert response.status_code == 400
+        assert response.json()["error_code"] == "EMPTY_MESSAGE"
+
+
+@pytest.mark.asyncio
+async def test_chat_empty_string_stays_validation_error():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = {"session_id": "test_session_empty", "message": ""}
+        response = await client.post("/api/v1/chat/message", json=payload)
+        assert response.status_code == 422
+        assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.asyncio
 async def test_chat_validation_error_format():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -155,3 +176,189 @@ async def test_document_download_not_found():
         assert dl_response.status_code == 404
         data = dl_response.json()
         assert data["error_code"] == "FILE_EXPIRED_OR_NOT_FOUND"
+
+
+def _kira_payload():
+    return {
+        "template_id": "kira_ihtarname_temerrut",
+        "case_params": {
+            "kira_tutari": 18000,
+            "gecikilen_aylar": "Eylül-Ekim 2026",
+            "odeme_suresi_gun": 30,
+            "tasinmaz_adresi": "Kadıköy / İstanbul",
+        },
+        "pii": {
+            "kiraya_veren_ad_soyad": "Mehmet Yılmaz",
+            "kiraya_veren_tc": "11111111111",
+            "kiraci_ad_soyad": "Ali Demir",
+            "iban": "TR120006100511123456789012",
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_chat_message_too_long_rejected():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = {"session_id": "test_session_4", "message": "a" * 4001}
+        response = await client.post("/api/v1/chat/message", json=payload)
+        assert response.status_code == 422
+        assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_chat_message_at_max_length_accepted():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = {"session_id": "test_session_5", "message": "a" * 4000}
+        response = await client.post("/api/v1/chat/message", json=payload)
+        assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_chat_session_id_length_limits():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        for session_id in ("", "s" * 129):
+            payload = {"session_id": session_id, "message": "Kira artış oranı nedir?"}
+            response = await client.post("/api/v1/chat/message", json=payload)
+            assert response.status_code == 422
+            assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_document_generate_missing_required_field():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_payload()
+        del payload["pii"]["kiraci_ad_soyad"]
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "TEMPLATE_FIELDS_INVALID"
+        assert "kiraci_ad_soyad" in data["message"]
+        assert "Mehmet Yılmaz" not in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_document_generate_unknown_pii_key():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_payload()
+        payload["pii"]["anne_kizlik_soyadi"] = "Kaya"
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "TEMPLATE_FIELDS_INVALID"
+        assert "anne_kizlik_soyadi" in data["message"]
+        assert "Kaya" not in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_document_generate_invalid_tc_id():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_payload()
+        payload["pii"]["kiraya_veren_tc"] = "1234567890"
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "TEMPLATE_FIELDS_INVALID"
+        assert "kiraya_veren_tc" in data["message"]
+        assert "1234567890" not in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_document_generate_invalid_iban():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_payload()
+        payload["pii"]["iban"] = "DE1200061005111234567890"
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "TEMPLATE_FIELDS_INVALID"
+        assert "iban" in data["message"]
+        assert "DE1200061005111234567890" not in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_document_generate_iban_with_spaces_accepted():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_payload()
+        payload["pii"]["iban"] = "TR12 0006 1005 1112 3456 7890 12"
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_document_generate_pii_value_too_long():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        long_name = "x" * 501
+        payload = _kira_payload()
+        payload["pii"]["kiraci_ad_soyad"] = long_name
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "VALIDATION_ERROR"
+        assert long_name not in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_document_generate_invalid_number():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_payload()
+        payload["case_params"]["kira_tutari"] = "on sekiz bin"
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "TEMPLATE_FIELDS_INVALID"
+        assert "kira_tutari" in data["message"]
+        assert "on sekiz bin" not in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_document_generate_invalid_date():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = {
+            "template_id": "tuketici_ayipli_mal_ihtarname",
+            "case_params": {
+                "urun_adi": "Buzdolabı",
+                "fatura_tarihi": "15.09.2026",
+                "ayipli_durum_ozeti": "Soğutmuyor",
+                "secimlik_hak": "Bedel İadesi",
+            },
+            "pii": {
+                "tuketici_ad_soyad": "Ayşe Kaya",
+                "tuketici_tc": "22222222222",
+                "satici_unvan": "Örnek A.Ş.",
+            },
+        }
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "TEMPLATE_FIELDS_INVALID"
+        assert "fatura_tarihi" in data["message"]
+        assert "15.09.2026" not in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_document_generate_extra_case_param_dropped(caplog):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_payload()
+        payload["case_params"]["llm_ek_alan"] = "gizli_deger_123"
+        with caplog.at_level("INFO", logger="app.services.doc_service"):
+            response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 200
+        assert "llm_ek_alan" in caplog.text
+        assert "gizli_deger_123" not in caplog.text
+
+        # Dropped value must not reach the rendered document
+        docx_filename = response.json()["docx_url"].split("/")[-1]
+        dl_response = await client.get(f"/api/v1/documents/download/{docx_filename}")
+        assert "gizli_deger_123" not in dl_response.text

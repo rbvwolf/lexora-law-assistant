@@ -31,6 +31,13 @@ async def generate_document(request: DocumentGenerateRequest) -> DocumentGenerat
             detail={"error_code": "TEMPLATE_NOT_FOUND", "message": f"Template '{request.template_id}' bulunamadı."},
         )
 
+    field_errors = doc_service.validate_fields(template, request.case_params, request.pii)
+    if field_errors.has_errors:
+        raise HTTPException(
+            status_code=422,
+            detail={"error_code": "TEMPLATE_FIELDS_INVALID", "message": field_errors.to_message()},
+        )
+
     file_id, docx_url, pdf_url, expires_at = await doc_service.generate_documents(
         template_id=request.template_id,
         case_params=request.case_params,
