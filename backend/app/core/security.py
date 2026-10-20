@@ -130,6 +130,11 @@ def mask_pii(text: str) -> str:
     return masked
 
 
+def is_blank(text: str) -> bool:
+    """Return True if text is empty after removing invisible chars and whitespace."""
+    return not _remove_invisible_chars(text).strip()
+
+
 def sanitize_input(text: str) -> Tuple[bool, str]:
     """Inspect user input for prompt injection attempts and sanitize whitespace.
 

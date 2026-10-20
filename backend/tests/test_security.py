@@ -1,6 +1,6 @@
 import pytest
 
-from app.core.security import mask_pii, sanitize_input
+from app.core.security import is_blank, mask_pii, sanitize_input
 
 
 ATTACK_MESSAGES = [
@@ -86,3 +86,13 @@ def test_mask_pii_after_sanitize_catches_split_iban() -> None:
     masked = mask_pii(cleaned)
     assert "[IBAN]" in masked
     assert "7890" not in masked
+
+
+@pytest.mark.parametrize("text", ["", "   ", "\n\t", "​​", "﻿ ­"])
+def test_is_blank_true(text):
+    assert is_blank(text) is True
+
+
+@pytest.mark.parametrize("text", ["a", "  kira  ", "​kira​"])
+def test_is_blank_false(text):
+    assert is_blank(text) is False

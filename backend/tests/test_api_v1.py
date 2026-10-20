@@ -86,6 +86,27 @@ async def test_chat_prompt_injection_refusal():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("message", ["   ", "\n\t", "​​", " ﻿ ​ "])
+async def test_chat_blank_message_returns_empty_message(message):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = {"session_id": "test_session_blank", "message": message}
+        response = await client.post("/api/v1/chat/message", json=payload)
+        assert response.status_code == 400
+        assert response.json()["error_code"] == "EMPTY_MESSAGE"
+
+
+@pytest.mark.asyncio
+async def test_chat_empty_string_stays_validation_error():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = {"session_id": "test_session_empty", "message": ""}
+        response = await client.post("/api/v1/chat/message", json=payload)
+        assert response.status_code == 422
+        assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.asyncio
 async def test_chat_validation_error_format():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

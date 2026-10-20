@@ -34,7 +34,7 @@ async def generate_document(request: DocumentGenerateRequest) -> DocumentGenerat
     field_errors = doc_service.validate_fields(template, request.case_params, request.pii)
     if field_errors.has_errors:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail={"error_code": "TEMPLATE_FIELDS_INVALID", "message": field_errors.to_message()},
         )
 
