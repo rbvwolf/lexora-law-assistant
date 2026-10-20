@@ -104,7 +104,8 @@ Returns service status and dependency connectivity (ChromaDB, Supabase, Groq).
 Returns active template list with their expected field schemas.
 
 ### `POST /api/v1/documents/generate`
-**Request:** `{ "template_id": str, "case_params": dict, "pii": { "full_name": str, "tc_id": str, "address": str, ... } }`
+**Request:** `{ "template_id": str, "case_params": dict, "pii": { <keys per the template's pii_fields>: str } }`
+`pii` keys are defined by the template's `pii_fields` and validated server-side (required fields, unknown keys, `tc_id` = 11 digits, `iban` = TR + 24 digits); invalid → 422 `TEMPLATE_FIELDS_INVALID` (message lists field names only, never values). Undefined `case_params` keys are not rejected; they are dropped before rendering.
 **Response:** `{ "file_id": str, "docx_url": str, "pdf_url": str, "expires_at": datetime }`
 Both files are generated in parallel from the **same Pydantic data model** (no format conversion).
 
