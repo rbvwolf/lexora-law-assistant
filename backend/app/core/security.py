@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from typing import Tuple
 
 # Regex Patterns for Turkish PII detection and masking
@@ -77,6 +78,38 @@ PROMPT_INJECTION_KEYWORDS = [
     "assistant: you are",
 ]
 
+WHITESPACE_PATTERN = re.compile(r"\s+")
+
+
+def _remove_invisible_chars(text: str) -> str:
+    """Remove Unicode format (Cf) chars: zero-width spaces, BOM, soft hyphen, bidi marks."""
+    return "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+
+
+def _normalize_for_matching(text: str) -> str:
+    """Fold text into a canonical form used only for keyword detection.
+
+    NFKD + dropping combining marks folds Turkish diacritics (ö->o, İ->I) and
+    fullwidth forms; dotless ı has no decomposition, so it is mapped explicitly.
+    """
+    decomposed = unicodedata.normalize("NFKD", text)
+    stripped = "".join(
+        ch for ch in decomposed if unicodedata.category(ch) not in ("Mn", "Cf")
+    )
+    folded = stripped.casefold().replace("ı", "i")
+    return WHITESPACE_PATTERN.sub(" ", folded).strip()
+
+
+def _compile_keyword_pattern(keyword: str) -> re.Pattern[str]:
+    # Left word boundary only: blocks mid-word hits ("magazadan modem" vs "dan mode")
+    # while still catching suffixed forms ("system prompts", "jailbreaking").
+    normalized = _normalize_for_matching(keyword)
+    prefix = r"(?<!\w)" if normalized[0].isalnum() else ""
+    return re.compile(prefix + re.escape(normalized))
+
+
+INJECTION_PATTERNS = [_compile_keyword_pattern(kw) for kw in PROMPT_INJECTION_KEYWORDS]
+
 
 def mask_pii(text: str) -> str:
     """Mask accidental PII from free-text chat input before any LLM call.
@@ -100,18 +133,25 @@ def mask_pii(text: str) -> str:
 def sanitize_input(text: str) -> Tuple[bool, str]:
     """Inspect user input for prompt injection attempts and sanitize whitespace.
 
+    Detection runs on a normalized copy (case, diacritics, whitespace, invisible
+    chars folded). The returned text only has invisible chars removed so that
+    Turkish characters reach the LLM intact and PII regexes are not evaded.
+
     Returns:
         (is_safe: bool, cleaned_text: str)
         If prompt injection is detected, is_safe is False and cleaned_text explains the refusal.
     """
-    if not text or not text.strip():
+    if not text:
         return False, "Boş veya geçersiz mesaj."
 
-    cleaned = text.strip()
-    lowered = cleaned.lower()
+    cleaned = _remove_invisible_chars(text).strip()
+    if not cleaned:
+        return False, "Boş veya geçersiz mesaj."
 
-    for keyword in PROMPT_INJECTION_KEYWORDS:
-        if keyword in lowered:
+    normalized = _normalize_for_matching(cleaned)
+
+    for pattern in INJECTION_PATTERNS:
+        if pattern.search(normalized):
             return (
                 False,
                 "Güvenlik uyarısı: Girdiniz sistem güvenlik ve rol politikalarını ihlal eden ifadeler içeriyor.",
