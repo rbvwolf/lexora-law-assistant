@@ -1,0 +1,181 @@
+{
+  "dataset_version": "1.0.0-phase1",
+  "description": "Lexora Phase 1 (W1-W2) initial 15 legal evaluation scenarios covering Rental Law (TBK), Consumer Law (TKHK), General Default (TBK), Labor Law (IK), Document Generation, and Out-of-Scope routing.",
+  "total_scenarios": 15,
+  "scenarios": [
+    {
+      "id": "EVAL-001",
+      "domain": "kira_hukuku",
+      "query": "Kiracım iki aydır kira bedelini ödemiyor. Tahliye edebilmem için ihtarnamede ona en az kaç gün ödeme süresi vermem gerekiyor?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TBK-315", "TBK-117"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TBK Madde 315 uyarınca konut ve çatılı işyeri kiralarında kiracıya yazılı olarak en az 30 gün süre verilmesi ve bu sürede ödenmezse sözleşmenin feshedileceğinin bildirilmesi gerekir.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-002",
+      "domain": "kira_hukuku",
+      "query": "Ev sahibim yeni kira döneminde kiraya %80 zam yapmak istiyor. Yasal olarak kira artış sınırı neye göre belirlenir?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TBK-344"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TBK Madde 344 uyarınca tarafların yenilenen kira dönemlerinde 적용할 kira bedeli anlaşması, bir önceki kira yılında tüketici fiyat endeksindeki (TÜFE) on iki aylık ortalamalara göre değişim oranını geçemez.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-003",
+      "domain": "kira_hukuku",
+      "query": "Ev sahibi benden 5 aylık kira bedeli tutarında depozito talep ediyor ve elden nakit istiyor. Bu yasal mıdır?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TBK-342"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TBK Madde 342 uyarınca konut ve çatılı işyeri kiralarında güvence (depozito) bedeli 3 aylık kira bedelini aşamaz ve kiraya verenin onayı olmaksızın çekilmemek üzere vadeli bir tasarruf hesabına yatırılmalıdır.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-004",
+      "domain": "kira_hukuku",
+      "query": "Oğlum evleneceği için kirada duran daireme kendisinin oturması gerekiyor. Kiracıyı ihtiyaç sebebiyle tahliye edebilir miyim?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TBK-350"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TBK Madde 350 uyarınca kiraya veren, kiralananı kendisi, eşi, altsoyu, üstsoyu veya kanun gereği bakmakla yükümlü olduğu diğer kişiler için konut ya da işyeri gereksinimi sebebiyle kullanma zorunluluğu varsa belirli süre sonunda veya fesih bildirim sürelerine uyarak bir ay içinde dava açabilir.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-005",
+      "domain": "kira_hukuku",
+      "query": "İçinde kiracı olan bir daire satın aldım. Kendim taşınmak istiyorum, kiracıyı çıkarmak için ne kadar sürede ihtar çekip dava açmalıyım?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TBK-351", "TBK-310"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TBK Madde 351 uyarınca yeni malik, edinme tarihinden başlayarak 1 ay içinde durumu kiracıya yazılı olarak bildirmek koşuluyla, 6 ay sonra açacağı bir davayla veya sözleşme süresinin bitiminden başlayarak 1 ay içinde açacağı davayla kiralananı sona erdirebilir.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-006",
+      "domain": "kira_hukuku",
+      "query": "Kiraladığım dairenin bir odasını ev sahibine sormadan başka birine alt kiraya verebilir miyim?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TBK-322"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TBK Madde 322 uyarınca konut ve çatılı işyeri kiralarında kiracı, kiraya verenin yazılı rızası olmadıkça kiralananı başkasına kiralayamaz (alt kira) ve kullanım hakkını devredemez.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-007",
+      "domain": "tuketici_hukuku",
+      "query": "Geçen hafta aldığım sıfır televizyonun ekranı bozuk çıktı. Ayıplı mal durumunda tüketici olarak kanuni seçimlik haklarım nelerdir?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TKHK-11", "TKHK-8"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TKHK Madde 11 uyarınca tüketici; satılanı geri vermeye hazır olduğunu bildirerek sözleşmeden dönme, satılanı alıkoyup ayıp oranında satış bedelinden indirim isteme, aşırı bir masraf gerektirmediği takdirde ücretsiz onarım isteme veya imkân varsa satılanın ayıpsız misli ile değiştirilmesini isteme seçimlik haklarından birini kullanabilir.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-008",
+      "domain": "tuketici_hukuku",
+      "query": "Aldığım telefon 3. ayda kendiliğinden kapandı ve açılmıyor. Satıcı hatanın bende olduğunu iddia ediyor, ayıbın olmadığını kim ispatlamak zorunda?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TKHK-10", "TKHK-12"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TKHK Madde 10 uyarınca teslim tarihinden itibaren 6 ay içinde ortaya çıkan ayıpların teslim tarihinde var olduğu kabul edilir ve malın ayıplı olmadığını ispat yükü satıcıya aittir.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-009",
+      "domain": "tuketici_hukuku",
+      "query": "Evimi boyatmak için anlaştığım firma duvarları kabartılı ve hatalı boyadı. Ayıplı hizmete karşı hangi haklarım var?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TKHK-15", "TKHK-13"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TKHK Madde 15 uyarınca hizmetin ayıplı ifa edildiği durumlarda tüketici; hizmetin yeniden görülmesi, hizmet sonucu ortaya çıkan eserin ücretsiz onarımı, ayıp oranında bedelden indirim veya sözleşmeden dönme haklarından birini sağlayıcıya karşı kullanabilir.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-010",
+      "domain": "borclar_genel",
+      "query": "Vadesi belli olmayan bir alacakta borçlu ne zaman temerrüde düşer ve temerrüt faizi nasıl işler?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["TBK-117", "TBK-120"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "TBK Madde 117 uyarınca muaccel bir borcun borçlusu, alacaklının ihtarıyla temerrüde düşer. TBK Madde 120 uyarınca para borcunu ödemede temerrüde düşen borçlu, sözleşmede belirlenmemişse yasal temerrüt faizi ödemekle yükümlüdür.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-011",
+      "domain": "is_hukuku",
+      "query": "2 yıldır aynı şirkette belirsiz süreli iş sözleşmesiyle çalışıyorum. İşveren beni işten çıkarırsa ihbar süresi kaç haftadır?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["IK-17", "IK-18"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "4857 Sayılı İş Kanunu Madde 17 uyarınca işi 1,5 yıldan 3 yıla kadar sürmüş olan işçi için fesih bildirim (ihbar) süresi 6 haftadır.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-012",
+      "domain": "is_hukuku",
+      "query": "İşverenim 2 aydır maaşımı ve fazla mesai ücretlerimi ödemiyor. İş sözleşmemi haklı nedenle derhal feshedebilir miyim?",
+      "expected_intent": "question_answering",
+      "expected_articles": ["IK-24"],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "4857 Sayılı İş Kanunu Madde 24/II-e uyarınca işveren tarafından işçinin ücreti kanun hükümleri veya sözleşme şartlarına uygun olarak hesap edilmez veya ödenmezse işçi iş sözleşmesini sürenin bitiminden önce veya bildirim süresini beklemeksizin haklı nedenle derhal feshedebilir.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-013",
+      "domain": "kira_hukuku",
+      "query": "Kiracım Ocak ve Şubat 2026 aylarının aylık 18.000 TL olan kirasını ödemedi. Ona kira borcu ve tahliye için ihtarname hazırlamak istiyorum.",
+      "expected_intent": "document_generation",
+      "expected_articles": ["TBK-315", "TBK-117"],
+      "expected_template_id": "kira_ihtarname_temerrut",
+      "expected_extracted_params": {
+        "kira_bedeli": "18000",
+        "odenmeyen_aylar": ["Ocak 2026", "Şubat 2026"]
+      },
+      "ground_truth_summary": "Sistem niyeti document_generation olarak sınıflandırmalı, kira ihtarname şablonunu önermeli, aylık kira tutarı ile ödenmeyen ayları çıkarmalı ve sözleşme başlangıç tarihi gibi eksik olay bilgilerini sormalıdır (PII istemeden).",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-014",
+      "domain": "tuketici_hukuku",
+      "query": "10 Ekim 2026 tarihinde 25.000 TL'ye aldığım dizüstü bilgisayarın anakartı arızalı çıktı, satıcı iade almıyor. Bedel iadesi için ihtarname/başvuru dilekçesi oluşturmak istiyorum.",
+      "expected_intent": "document_generation",
+      "expected_articles": ["TKHK-11", "TKHK-8"],
+      "expected_template_id": "tuketici_ayipli_mal_ihtarname",
+      "expected_extracted_params": {
+        "urun_adi": "Dizüstü bilgisayar",
+        "urun_bedeli": "25000",
+        "satin_alma_tarihi": "2026-10-10",
+        "ayip_aciklamasi": "Anakart arızası",
+        "talep_edilen_hak": "Bedel iadesi (Sözleşmeden dönme)"
+      },
+      "ground_truth_summary": "Sistem niyeti document_generation olarak sınıflandırmalı, tüketici ayıplı mal ihtarname şablonunu seçmeli ve ürün, bedel, tarih, ayıp ve talep parametrelerini çıkarmalıdır.",
+      "mentor_verified": true
+    },
+    {
+      "id": "EVAL-015",
+      "domain": "out_of_scope",
+      "query": "Komşumla kavga ettik ve hakkımda kasten yaralama suçundan ağır ceza mahkemesinde dava açıldı, beraat etmek için nasıl savunma yapmalıyım?",
+      "expected_intent": "out_of_scope",
+      "expected_articles": [],
+      "expected_template_id": null,
+      "expected_extracted_params": {},
+      "ground_truth_summary": "Ceza hukuku ve ağır ceza davaları Lexora'nın kapsamı dışındadır. Sistem out_of_scope dönmeli, ceza davalarında tavsiye veremeyeceğini belirtmeli ve kullanıcıyı bir avukata yönlendirmelidir.",
+      "mentor_verified": true
+    }
+  ]
+}
