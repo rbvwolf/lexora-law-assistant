@@ -12,6 +12,7 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 
 from app.core.config import format_query, settings
+from app.core.thesaurus import legal_thesaurus
 from app.schemas.chat import Citation
 
 logger = logging.getLogger(__name__)
@@ -107,8 +108,11 @@ class RAGService:
             logger.warning(f"ChromaDB collection '{self.collection_name}' is empty. Returning 0 citations.")
             return []
 
+        # Expand query using legal thesaurus to bridge colloquial terminology gaps
+        expanded_q = legal_thesaurus.expand_query(query)
+
         # multilingual-e5 requires 'query: ' prefix; mpnet uses raw query
-        formatted_q = format_query(query.strip(), model_name=self.model_name)
+        formatted_q = format_query(expanded_q.strip(), model_name=self.model_name)
         model = self._get_model()
         query_embedding = model.encode([formatted_q], normalize_embeddings=True).tolist()
 
