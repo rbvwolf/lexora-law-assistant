@@ -35,6 +35,8 @@ temp/
 tmp/
 generated_docs/
 backend/generated_docs/
+reports/
+backend/reports/
 
 .pytest_cache/
 .coverage
