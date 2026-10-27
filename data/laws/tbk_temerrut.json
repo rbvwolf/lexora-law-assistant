@@ -1,0 +1,82 @@
+[
+  {
+    "article_id": "TBK-117",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 117,
+    "title": "Koşulları",
+    "domain": "borclar_genel",
+    "text": "Muaccel bir borcun borçlusu, alacaklının ihtarıyla temerrüde düşer.\n\nBorcun ifa edileceği gün, birlikte belirlenmiş veya sözleşmede saklı tutulan bir hakka dayanarak taraflardan biri usulüne uygun bir bildirimde bulunmak suretiyle belirlemişse, bu günün geçmesiyle; haksız fiilde fiilin işlendiği, sebepsiz zenginleşmede ise zenginleşmenin gerçekleştiği tarihte borçlu temerrüde düşmüş olur. Ancak sebepsiz zenginleşenin iyiniyetli olduğu hâllerde temerrüt için bildirim şarttır."
+  },
+  {
+    "article_id": "TBK-118",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 118,
+    "title": "Gecikme tazminatı",
+    "domain": "borclar_genel",
+    "text": "Temerrüde düşen borçlu, temerrüde düşmekte kusuru olmadığını ispat etmedikçe, borcun geç ifasından dolayı alacaklının uğradığı zararı gidermekle yükümlüdür."
+  },
+  {
+    "article_id": "TBK-119",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 119,
+    "title": "Beklenmedik hâlden sorumluluk",
+    "domain": "borclar_genel",
+    "text": "Temerrüde düşen borçlu, beklenmedik hâl sebebiyle doğacak zarardan sorumludur.\n\nBorçlu, temerrüde düşmekte kusuru olmadığını veya borcunu zamanında ifa etmiş olsaydı bile beklenmedik hâlin ifa konusu şeye zarar vereceğini ispat ederek bu sorumluluktan kurtulabilir."
+  },
+  {
+    "article_id": "TBK-120",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 120,
+    "title": "Temerrüt faizi - Genel olarak",
+    "domain": "borclar_genel",
+    "text": "Uygulanacak yıllık temerrüt faizi oranı, sözleşmede kararlaştırılmamışsa, faiz borcunun doğduğu tarihte yürürlükte olan mevzuat hükümlerine göre belirlenir.\n\nSözleşme ile kararlaştırılacak yıllık temerrüt faizi oranı, birinci fıkra uyarınca belirlenen yıllık faiz oranının yüzde yüz fazlasını aşamaz.\n\nAkdî faiz oranı kararlaştırılmakla birlikte sözleşmede temerrüt faizi kararlaştırılmamışsa ve yıllık akdî faiz oranı da birinci fıkrada belirtilen faiz oranından fazla ise, temerrüt faizi oranı hakkında akdî faiz oranı geçerli olur."
+  },
+  {
+    "article_id": "TBK-121",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 121,
+    "title": "Faizlerde, iratlarda ve bağışlamada temerrüt faizi",
+    "domain": "borclar_genel",
+    "text": "Faiz veya irat borcunu ya da bağışladığı bir miktar parayı ödemekte temerrüde düşen borçlu, icra takibine girişildiği veya dava açıldığı günden başlayarak, temerrüt faizi ödemekle yükümlüdür.\n\nBuna aykırı olarak yapılan anlaşmalar, ceza koşulu hükümlerine tabi olur.\n\nTemerrüt faizine, ayrıca temerrüt faizi yürütülemez."
+  },
+  {
+    "article_id": "TBK-122",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 122,
+    "title": "Aşkın zarar",
+    "domain": "borclar_genel",
+    "text": "Alacaklı, temerrüt faizini aşan bir zarara uğramış olursa, borçlu kendisinin hiçbir kusuru bulunmadığını ispat etmedikçe, bu zararı da gidermekle yükümlüdür.\n\nTemerrüt faizini aşan zarar miktarı görülmekte olan davada belirlenebiliyorsa, davacının istemi üzerine hâkim, esas hakkında karar verirken bu zararın miktarına da hükmeder."
+  },
+  {
+    "article_id": "TBK-123",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 123,
+    "title": "Süre verilmesi",
+    "domain": "borclar_genel",
+    "text": "Karşılıklı borç yükleyen sözleşmelerde, taraflardan biri temerrüde düştüğü takdirde diğeri, borcun ifa edilmesi için uygun bir süre verebilir veya uygun bir süre verilmesini hâkimden isteyebilir."
+  },
+  {
+    "article_id": "TBK-124",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 124,
+    "title": "Süre verilmesini gerektirmeyen durumlar",
+    "domain": "borclar_genel",
+    "text": "Aşağıdaki durumlarda süre verilmesine gerek yoktur:\n\n1. Borçlunun içinde bulunduğu durumdan veya tutumundan süre verilmesinin etkisiz olacağı anlaşılıyorsa.\n\n2. Borçlunun temerrüdü sonucunda borcun ifası alacaklı için yararsız kalmışsa.\n\n3. Borcun ifasının, belirli bir zamanda veya belirli bir süre içinde gerçekleşmemesi üzerine, ifanın artık kabul edilmeyeceği sözleşmeden anlaşılıyorsa."
+  },
+  {
+    "article_id": "TBK-125",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 125,
+    "title": "Seçimlik haklar",
+    "domain": "borclar_genel",
+    "text": "Temerrüde düşen borçlu, verilen süre içinde, borcunu ifa etmemişse veya süre verilmesini gerektirmeyen bir durum söz konusu ise alacaklı, her zaman borcun ifasını ve gecikme sebebiyle tazminat isteme hakkına sahiptir.\n\nAlacaklı, ayrıca borcun ifasından ve gecikme tazminatı isteme hakkından vazgeçtiğini hemen bildirerek, borcun ifa edilmemesinden doğan zararın giderilmesini isteyebilir veya sözleşmeden dönebilir.\n\nSözleşmeden dönme hâlinde taraflar, karşılıklı olarak ifa yükümlülüğünden kurtulurlar ve daha önce ifa ettikleri edimleri geri isteyebilirler. Bu durumda borçlu, temerrüde düşmekte kusuru olmadığını ispat edemezse alacaklı, sözleşmenin hükümsüz kalması sebebiyle uğradığı zararın giderilmesini de isteyebilir."
+  },
+  {
+    "article_id": "TBK-126",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 126,
+    "title": "Sürekli edimli sözleşmelerde",
+    "domain": "borclar_genel",
+    "text": "İfasına başlanmış sürekli edimli sözleşmelerde, borçlunun temerrüdü hâlinde alacaklı, ifa ve gecikme tazminatı isteyebileceği gibi, sözleşmeyi feshederek, sözleşmenin süresinden önce sona ermesi yüzünden uğradığı zararın giderilmesini de isteyebilir."
+  }
+]

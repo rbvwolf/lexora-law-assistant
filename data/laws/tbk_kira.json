@@ -1,0 +1,466 @@
+[
+  {
+    "article_id": "TBK-299",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 299,
+    "title": "Tanımı",
+    "domain": "kira_hukuku",
+    "text": "Kira sözleşmesi, kiraya verenin bir şeyin kullanılmasını veya kullanmayla birlikte ondan yararlanılmasını kiracıya bırakmayı, kiracının da buna karşılık kararlaştırılan kira bedelini ödemeyi üstlendiği sözleşmedir."
+  },
+  {
+    "article_id": "TBK-300",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 300,
+    "title": "Kira süresi",
+    "domain": "kira_hukuku",
+    "text": "Kira sözleşmesi, belirli ve belirli olmayan bir süre için yapılabilir.\n\nKararlaştırılan sürenin geçmesiyle herhangi bir bildirim olmaksızın sona erecek kira sözleşmesi belirli sürelidir; diğer kira sözleşmeleri belirli olmayan bir süre için yapılmış sayılır."
+  },
+  {
+    "article_id": "TBK-301",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 301,
+    "title": "Teslim borcu",
+    "domain": "kira_hukuku",
+    "text": "Kiraya veren, kiralananı kararlaştırılan tarihte, sözleşmede amaçlanan kullanıma elverişli bir durumda teslim etmek ve sözleşme süresince bu durumda bulundurmakla yükümlüdür. Bu hüküm, konut ve çatılı işyeri kiralarında kiracı aleyhine değiştirilemez; diğer kira sözleşmelerinde ise, kiracı aleyhine genel işlem koşulları yoluyla bu hükme aykırı düzenleme yapılamaz."
+  },
+  {
+    "article_id": "TBK-302",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 302,
+    "title": "Vergi ve benzeri yükümlülüklere katlanma borcu",
+    "domain": "kira_hukuku",
+    "text": "Kiralananla ilgili zorunlu sigorta, vergi ve benzeri yükümlülüklere, aksi kararlaştırılmamış veya kanunda öngörülmemiş ise, kiraya veren katlanır."
+  },
+  {
+    "article_id": "TBK-303",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 303,
+    "title": "Yan giderlere katlanma borcu",
+    "domain": "kira_hukuku",
+    "text": "Kiraya veren, kiralananın kullanımıyla ilgili olmak üzere, kendisi veya üçüncü kişi tarafından yapılan yan giderlere katlanmakla yükümlüdür."
+  },
+  {
+    "article_id": "TBK-304",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 304,
+    "title": "Kiralananın teslim anındaki ayıplarından sorumluluk",
+    "domain": "kira_hukuku",
+    "text": "Kiralananın önemli ayıplarla teslimi hâlinde kiracı, borçlunun temerrüdüne veya kiraya verenin kiralananın sonradan ayıplı duruma gelmesinden doğan sorumluluğuna ilişkin hükümlere başvurabilir.\n\nKiralananın önemli olmayan ayıplarla tesliminde ise kiracı, kiralananda sonradan ortaya çıkan ayıplardan dolayı kiraya verenin sorumluluğuna ilişkin hükümlere başvurabilir."
+  },
+  {
+    "article_id": "TBK-305",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 305,
+    "title": "Kiralananın sonradan ayıplı hâle gelmesinden sorumluluk - Genel olarak",
+    "domain": "kira_hukuku",
+    "text": "Kiralanan sonradan ayıplı duruma gelirse kiracı, kiraya verenden ayıpların giderilmesini veya kira bedelinden ayıpla orantılı bir indirim yapılmasını ya da zararının giderilmesini isteyebilir. Ancak, zararın giderilmesi istemi diğer seçimlik hakların kullanılmasını önlemez.\n\nÖnemli ayıp durumunda kiracının sözleşmeyi fesih hakkı saklıdır."
+  },
+  {
+    "article_id": "TBK-306",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 306,
+    "title": "Ayıbın giderilmesini isteme ve fesih",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiraya verenden kiralanandaki ayıbın uygun bir sürede giderilmesini isteyebilir; bu sürede ayıp giderilmezse kiracı, ayıbı kiraya veren hesabına gidertebilir ve bundan doğan alacağını kira bedelinden indirebilir veya kiralananın ayıpsız bir benzeri ile değiştirilmesini isteyebilir.\n\nAyıbın, kiralananın öngörülen kullanıma elverişliliğini ortadan kaldırması ya da önemli ölçüde engellemesi ve verilen sürede giderilmemesi hâlinde kiracı, sözleşmeyi feshedebilir.\n\nKiraya veren, kiralanandaki ayıbı gidermek yerine, uygun bir süre içinde ayıpsız benzeriyle değiştirebilir.\n\nKiraya veren, kiracıya aynı malın ayıpsız bir benzerini hemen vererek ve uğradığı zararın tamamını gidererek, onun seçimlik haklarını kullanmasını önleyebilir."
+  },
+  {
+    "article_id": "TBK-307",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 307,
+    "title": "Kira bedelinin indirilmesi",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiralananın kullanımını etkileyen ayıpların varlığı hâlinde, bu ayıpların kiraya veren tarafından öğrenilmesinden ayıbın giderilmesine kadar geçen süre için, kira bedelinden ayıpla orantılı bir indirim yapılmasını isteyebilir."
+  },
+  {
+    "article_id": "TBK-308",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 308,
+    "title": "Zararın giderimi",
+    "domain": "kira_hukuku",
+    "text": "Kiraya veren, kusuru olmadığını ispat etmedikçe, kiralananın ayıplı olmasından doğan zararları kiracıya ödemekle yükümlüdür."
+  },
+  {
+    "article_id": "TBK-309",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 309,
+    "title": "Zapttan sorumluluk",
+    "domain": "kira_hukuku",
+    "text": "Bir üçüncü kişinin kiralananda kiracının hakkıyla bağdaşmayan bir hak ileri sürmesi durumunda kiraya veren, kiracının bildirimi üzerine davayı üstlenmek ve kiracının uğradığı her türlü zararı gidermekle yükümlüdür."
+  },
+  {
+    "article_id": "TBK-310",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 310,
+    "title": "Kiralananın el değiştirmesi",
+    "domain": "kira_hukuku",
+    "text": "Sözleşmenin kurulmasından sonra kiralanan herhangi bir sebeple el değiştirirse, yeni malik kira sözleşmesinin tarafı olur.\n\nKamulaştırmaya ilişkin hükümler saklıdır."
+  },
+  {
+    "article_id": "TBK-311",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 311,
+    "title": "Üçüncü kişinin sınırlı ayni hak sahibi olması",
+    "domain": "kira_hukuku",
+    "text": "Sözleşmenin kurulmasından sonra üçüncü bir kişi, kiralanan üzerinde kiracının hakkını etkileyen bir ayni hak sahibi olursa, kiralananın el değiştirmesiyle ilgili hükümler kıyas yoluyla uygulanır."
+  },
+  {
+    "article_id": "TBK-312",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 312,
+    "title": "Tapu siciline şerh",
+    "domain": "kira_hukuku",
+    "text": "Taşınmaz kiralarında, sözleşmeyle kiracının kiracılık hakkının tapu siciline şerhi kararlaştırılabilir."
+  },
+  {
+    "article_id": "TBK-313",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 313,
+    "title": "Kira bedelini ödeme borcu - Genel olarak",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kira bedelini ödemekle yükümlüdür."
+  },
+  {
+    "article_id": "TBK-314",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 314,
+    "title": "İfa zamanı",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, aksine sözleşme ve yerel âdet olmadıkça, kira bedelini ve gerekiyorsa yan giderleri, her ayın sonunda ve en geç kira süresinin bitiminde ödemekle yükümlüdür."
+  },
+  {
+    "article_id": "TBK-315",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 315,
+    "title": "Kiracının temerrüdü",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiralananın tesliminden sonra muaccel olan kira bedelini veya yan gideri ödeme borcunu ifa etmezse, kiraya veren kiracıya yazılı olarak bir süre verip, bu sürede de ifa etmeme durumunda, sözleşmeyi feshedeceğini bildirebilir.\n\nKiracıya verilecek süre en az on gün, konut ve çatılı işyeri kiralarında ise en az otuz gündür. Bu süre, kiracıya yazılı bildirimin yapıldığı tarihi izleyen günden itibaren işlemeye başlar."
+  },
+  {
+    "article_id": "TBK-316",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 316,
+    "title": "Özenle kullanma ve komşulara saygı gösterme borcu",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiralananı, sözleşmeye uygun olarak özenle kullanmak ve kiralananın bulunduğu taşınmazda oturan kişiler ile komşulara gerekli saygıyı göstermekle yükümlüdür.\n\nKiracının bu yükümlülüğüne aykırı davranması durumunda kiraya veren, konut ve çatılı işyeri kirasında, en az otuz gün süre vererek, aykırılığın giderilmesi, aksi takdirde sözleşmeyi feshedeceği konusunda yazılı bir ihtarda bulunur. Diğer kira ilişkilerinde ise, kiraya veren, kiracıya önceden bir ihtarda bulunmaksızın, yazılı bir bildirimle sözleşmeyi hemen feshedebilir.\n\nKonut ve çatılı işyeri kirasında, kiracının kiralanana kasten ağır bir zarar vermesi, kiracıya verilecek sürenin yararsız olacağının anlaşılması veya kiracının bu yükümlülüğe aykırı davranışının kiraya veren veya aynı taşınmazda oturan kişiler ile komşular bakımından çekilmez olması durumlarında kiraya veren, yazılı bir bildirimle sözleşmeyi hemen feshedebilir."
+  },
+  {
+    "article_id": "TBK-317",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 317,
+    "title": "Temizlik ve bakım giderlerini ödeme borcu",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiralananın olağan kullanımı için gerekli temizlik ve bakım giderlerini ödemekle yükümlüdür. Bu konuda yerel âdete de bakılır."
+  },
+  {
+    "article_id": "TBK-318",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 318,
+    "title": "Ayıpları kiraya verene bildirme borcu",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kendisinin gidermekle yükümlü olmadığı ayıpları kiraya verene gecikmeksizin bildirmekle yükümlüdür; aksi takdirde bundan doğan zarardan sorumludur."
+  },
+  {
+    "article_id": "TBK-319",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 319,
+    "title": "Ayıpların giderilmesine ve kiralananın gösterilmesine katlanma borcu",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiralananın ayıplarının giderilmesine ya da zararların önlenmesine yönelik çalışmalara katlanmakla yükümlüdür.\n\nKiracı, bakım, satış ya da sonraki kiralama için zorunlu olduğu ölçüde, kiraya verenin ve onun belirlediği üçüncü kişinin kiralananı gezip görmesine izin vermekle yükümlüdür.\n\nKiraya veren, çalışmaları ve kiralananın gezilip görüleceğini uygun bir süre önce kiracıya bildirmek ve bunların yapıldığı sırada kiracının yararlarını göz önünde tutmak zorundadır.\n\nKiracının kira bedelinin indirilmesine ve zararının giderilmesine ilişkin hakları saklıdır."
+  },
+  {
+    "article_id": "TBK-320",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 320,
+    "title": "Kiralananda yenilik ve değişiklik yapılması - Kiraya veren tarafından",
+    "domain": "kira_hukuku",
+    "text": "Kiraya veren, kiralananda, kira sözleşmesinin feshini gerektirmeyen ve kiracıdan katlanması beklenebilecek olan yenilik ve değişiklikler yapabilir.\n\nBu yenilik ve değişikliklerin yapılması sırasında kiraya veren, kiracının menfaatlerini gözetmekle yükümlüdür. Kiracının, kira bedelinin indirilmesine ve zararının giderilmesine ilişkin hakları saklıdır."
+  },
+  {
+    "article_id": "TBK-321",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 321,
+    "title": "Kiracı tarafından",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiraya verenin yazılı rızasıyla kiralananda yenilik ve değişiklikler yapabilir.\n\nYenilik ve değişikliklere rıza gösteren kiraya veren, yazılı olarak kararlaştırılmış olmadıkça, kiralananın eski durumuyla geri verilmesini isteyemez.\n\nKiracı, aksine yazılı bir anlaşma yoksa, kiraya verenin rızasıyla yaptığı yenilik ve değişiklikler sebebiyle kiralananda ortaya çıkan değer artışının karşılığını isteyemez."
+  },
+  {
+    "article_id": "TBK-322",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 322,
+    "title": "Alt kira ve kullanım hakkının devri",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiraya verene zarar verecek bir değişikliğe yol açmamak koşuluyla, kiralananı tamamen veya kısmen başkasına kiraya verebileceği gibi, kullanım hakkını da başkasına devredebilir.\n\nKiracı, konut ve çatılı işyeri kiralarında, kiraya verenin yazılı rızası olmadıkça, kiralananı başkasına kiralayamayacağı gibi, kullanım hakkını da devredemez.\n\nAlt kiracı, kiralananı kiracıya tanınandan başka biçimde kullandığı takdirde kiracı, kiraya verene karşı sorumlu olur. Bu durumda kiraya veren, kiracısına karşı sahip olduğu hakları alt kiracıya veya kullanım hakkını devralana karşı da kullanabilir."
+  },
+  {
+    "article_id": "TBK-323",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 323,
+    "title": "Kira ilişkisinin devri",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiraya verenin yazılı rızasını almadıkça, kira ilişkisini başkasına devredemez. Kiraya veren, işyeri kiralarında haklı sebep olmadıkça bu rızayı vermekten kaçınamaz.\n\nKiraya verenin yazılı rızasıyla kira ilişkisi kendisine devredilen kişi, kira sözleşmesinde kiracının yerine geçer ve devreden kiracı, kiraya verene karşı borçlarından kurtulur.\n\nİşyeri kiralarında devreden kiracı, kira sözleşmesinin bitimine kadar ve en fazla iki yıl süreyle devralanla birlikte müteselsilen sorumlu olur."
+  },
+  {
+    "article_id": "TBK-324",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 324,
+    "title": "Kiralananın kullanılmaması - Genel olarak",
+    "domain": "kira_hukuku",
+    "text": "Kullanıma elverişli bulundurulduğu sürece kiralanan, kiracının kendisinden kaynaklanan bir sebeple kullanılmasa veya sınırlı olarak kullanılsa bile kiracı, kira bedelini ödemekle yükümlüdür. Bu durumda, kiraya verenin yapmaktan kurtulduğu giderler kira bedelinden indirilir."
+  },
+  {
+    "article_id": "TBK-325",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 325,
+    "title": "Kiralananın sözleşmenin bitiminden önce geri verilmesi",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, sözleşme süresine veya fesih dönemine uymaksızın kiralananı geri verdiği takdirde, kira sözleşmesinden doğan borçları, kiralananın benzer koşullarla kiraya verilebileceği makul bir süre için devam eder. Kiracının bu sürenin geçmesinden önce kiraya verenden kabul etmesi beklenebilecek, ödeme gücüne sahip ve kira ilişkisini devralmaya hazır yeni bir kiracı bulması hâlinde, kiracının kira sözleşmesinden doğan borçları sona erer.\n\nKiraya veren, yapmaktan kurtulduğu giderler ile kiralananı başka biçimde kullanmakla elde ettiği veya elde etmekten kasten kaçındığı yararları kira bedelinden indirmekle yükümlüdür."
+  },
+  {
+    "article_id": "TBK-326",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 326,
+    "title": "Takastan feragat yasağı",
+    "domain": "kira_hukuku",
+    "text": "Kiracı ve kiraya veren, kira sözleşmesinden doğan alacaklarını takas etme hakkından önceden feragat edemezler."
+  },
+  {
+    "article_id": "TBK-327",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 327,
+    "title": "Sürenin geçmesi",
+    "domain": "kira_hukuku",
+    "text": "Açık veya örtülü biçimde bir süre belirlenmişse, kira sözleşmesi bu sürenin sonunda kendiliğinden sona erer.\n\nTaraflar, bu durumda, açık bir anlaşma olmaksızın kira ilişkisini sürdürürlerse, kira sözleşmesi belirsiz süreli sözleşmeye dönüşür."
+  },
+  {
+    "article_id": "TBK-328",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 328,
+    "title": "Belirsiz süreli kira sözleşmelerinde fesih bildirimi - Genel olarak",
+    "domain": "kira_hukuku",
+    "text": "Belirsiz süreli kira sözleşmelerinde taraflardan her biri, daha uzun bir fesih bildirim süresi veya başka bir fesih dönemi kararlaştırılmış olmadıkça, yasal fesih dönemlerine ve fesih bildirim sürelerine uyarak sözleşmeyi feshedebilir. Fesih dönemlerinin hesabında, kira sözleşmesinin başlangıç tarihi esas alınır.\n\nSözleşmede veya kanunda belirtilen fesih dönemine veya bildirim süresine uyulmamışsa, bildirim bir sonraki fesih dönemi için geçerli olur."
+  },
+  {
+    "article_id": "TBK-329",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 329,
+    "title": "Taşınmaz ve taşınır yapı kiralarında",
+    "domain": "kira_hukuku",
+    "text": "Taraflardan her biri, bir taşınmaza veya taşınır bir yapıya ilişkin kira sözleşmesini yerel âdette belirlenen kira döneminin sonu için veya böyle bir âdetin bulunmaması durumunda, altı aylık kira döneminin sonu için, üç aylık fesih bildirim süresine uyarak feshedebilir."
+  },
+  {
+    "article_id": "TBK-330",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 330,
+    "title": "Taşınır kiralarında",
+    "domain": "kira_hukuku",
+    "text": "Taraflardan her biri, bir taşınıra ilişkin kira sözleşmesini üç gün önceden yapılacak fesih bildirim süresine uyarak her zaman feshedebilir.\n\nKiraya verenin meslekî faaliyeti gereği kiraya verdiği ve kiracının da özel kullanımına yarayan taşınır bir malın kiracısı, kira sözleşmesini, üç aylık kira dönemi sonu için en az bir ay önceden yapacağı bir fesih bildirimiyle sona erdirebilir. Bu durumda kiraya verenin, zararının giderilmesini isteme hakkı yoktur."
+  },
+  {
+    "article_id": "TBK-331",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 331,
+    "title": "Önemli sebepler",
+    "domain": "kira_hukuku",
+    "text": "Taraflardan her biri, kira ilişkisinin devamını kendisi için çekilmez hâle getiren önemli sebeplerin varlığı durumunda, sözleşmeyi yasal fesih bildirim süresine uyarak her zaman feshedebilir.\n\nHâkim, durum ve koşulları göz önünde tutarak, olağanüstü fesih bildiriminin parasal sonuçlarını karara bağlar."
+  },
+  {
+    "article_id": "TBK-332",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 332,
+    "title": "Kiracının iflası",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiralananın tesliminden sonra iflas ederse kiraya veren, işleyecek kira bedelleri için güvence verilmesini isteyebilir.\n\nKiraya veren, güvence verilmesi için kiracı ve iflas masasına yazılı olarak uygun bir süre verir. Bu süre içinde kendisine güvence verilmezse kiraya veren, sözleşmeyi herhangi bir fesih bildirim süresine uymaksızın hemen feshedebilir."
+  },
+  {
+    "article_id": "TBK-333",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 333,
+    "title": "Kiracının ölümü",
+    "domain": "kira_hukuku",
+    "text": "Kiracının ölmesi durumunda mirasçıları, yasal fesih bildirim süresine uyarak en yakın fesih dönemi sonu için sözleşmeyi feshedebilirler."
+  },
+  {
+    "article_id": "TBK-334",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 334,
+    "title": "Kiralananın geri verilmesi - Genel olarak",
+    "domain": "kira_hukuku",
+    "text": "Kiracı kiralananı ne durumda teslim almışsa, kira sözleşmesinin bitiminde o durumda geri vermekle yükümlüdür. Ancak, kiracı sözleşmeye uygun kullanma dolayısıyla kiralananda meydana gelen eskimelerden ve bozulmalardan sorumlu değildir.\n\nKiracının, sözleşmenin sona ermesi hâlinde, sözleşmeye aykırı kullanmadan doğacak zararları giderme dışında, başkaca bir tazminat ödeyeceğini önceden taahhüt etmesine ilişkin anlaşmalar geçersizdir."
+  },
+  {
+    "article_id": "TBK-335",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 335,
+    "title": "Kiralananın gözden geçirilmesi ve kiracıya bildirme",
+    "domain": "kira_hukuku",
+    "text": "Kiraya veren, geri verme sırasında kiralananın durumunu gözden geçirmek ve kiracının sorumlu olduğu eksiklikleri ve ayıpları ona hemen yazılı olarak bildirmek zorundadır. Bu bildirim yapılmazsa, kiracı her türlü sorumluluktan kurtulur. Ancak, teslim alma sırasında olağan incelemeyle belirlenemeyecek olan eksikliklerin ve ayıpların varlığı hâlinde, kiracının sorumluluğu devam eder. Kiraya veren, bu tür eksiklikleri ve ayıpları belirlediğinde, kiracıya hemen yazılı olarak bildirmek zorundadır."
+  },
+  {
+    "article_id": "TBK-336",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 336,
+    "title": "Kiraya verenin hapis hakkı - Konusu",
+    "domain": "kira_hukuku",
+    "text": "Taşınmaz kiralarında kiraya veren, işlemiş bir yıllık ve işlemekte olan altı aylık kira bedelinin güvencesi olmak üzere, kiralananda bulunan ve kiralananın döşenmesine veya kullanılmasına yarayan taşınırlar üzerinde hapis hakkına sahiptir.\n\nKiraya verenin hapis hakkı, alt kiracının asıl kiracıya olan kira borcunu aşmamak üzere, alt kiracının kiralanana getirdiği aynı nitelikteki taşınırları da kapsar.\n\nHapis hakkı, kiracının haczedilemeyen malları üzerinde kullanılamaz."
+  },
+  {
+    "article_id": "TBK-337",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 337,
+    "title": "Üçüncü kişilere ait olan eşya",
+    "domain": "kira_hukuku",
+    "text": "Üçüncü kişilerin, kiraya verenin kiracıya ait olmadığını bildiği veya bilmesi gerektiği eşya ile çalınmış, kaybolmuş veya başka bir biçimde malikinin elinden iradesi dışında çıkmış eşya üzerindeki hakları, kiraya verenin hapis hakkından önce gelir.\n\nKiraya veren, kiracı tarafından kiralanana getirilmiş olan taşınırların kiracının mülkiyetinde olmadığını kira sözleşmesi devam ederken öğrendiği hâlde, sözleşmeyi en yakın fesih döneminin sonu için feshetmezse, bu eşya üzerindeki hapis hakkını kaybeder."
+  },
+  {
+    "article_id": "TBK-338",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 338,
+    "title": "Hakkın kullanılması",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, taşınmak veya kiralananda bulunan taşınırları başka bir yere taşımak istediği takdirde, kiraya veren, alacağını güvence altına almasını sağlayacak miktardaki taşınırı, sulh hâkiminin veya icra müdürünün kararıyla alıkoyabilir.\n\nAlıkoyma kararının konusu olan eşya, gizlice veya zorla götürülürse, götürülmelerinden başlayarak on gün içinde kolluk gücünün yardımıyla kiralanana geri getirilir."
+  },
+  {
+    "article_id": "TBK-339",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 339,
+    "title": "Uygulama alanı",
+    "domain": "kira_hukuku",
+    "text": "Konut ve çatılı işyeri kiralarına ilişkin hükümler, bunlarla birlikte kullanımı kiracıya bırakılan eşya hakkında da uygulanır. Ancak bu hükümler, niteliği gereği geçici kullanıma özgülenmiş taşınmazların altı ay ve daha kısa süreyle kiralanmalarında uygulanmaz.\n\nKamu kurum ve kuruluşlarının, hangi usul ve esaslar içinde olursa olsun yaptıkları bütün kira sözleşmelerine de bu hükümler uygulanır."
+  },
+  {
+    "article_id": "TBK-340",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 340,
+    "title": "Bağlantılı sözleşme",
+    "domain": "kira_hukuku",
+    "text": "Konut ve çatılı işyeri kiralarında sözleşmenin kurulması ya da sürdürülmesi, kiracının yararı olmaksızın, kiralananın kullanımıyla doğrudan ilişkisi olmayan bir borç altına girmesine bağlanmışsa, kirayla bağlantılı sözleşme geçersizdir."
+  },
+  {
+    "article_id": "TBK-341",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 341,
+    "title": "Kullanma giderleri",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, konut ve çatılı işyeri kiralarında, sözleşmede aksi öngörülmemişse veya aksine yerel âdet yoksa, ısıtma, aydınlatma ve su gibi kullanma giderlerine katlanmakla yükümlüdür.\n\nGiderlere katlanan taraf, bu giderleri ispat edici belgelerin birer örneğini, istem üzerine diğer tarafa vermek zorundadır."
+  },
+  {
+    "article_id": "TBK-342",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 342,
+    "title": "Kiracının güvence vermesi",
+    "domain": "kira_hukuku",
+    "text": "Konut ve çatılı işyeri kiralarında sözleşmeyle kiracıya güvence verme borcu getirilmişse, bu güvence üç aylık kira bedelini aşamaz.\n\nGüvence olarak para veya kıymetli evrak verilmesi kararlaştırılmışsa kiracı, kiraya verenin onayı olmaksızın çekilmemek üzere, parayı vadeli bir tasarruf hesabına yatırır, kıymetli evrakı ise bir bankaya depo eder. Banka, güvenceleri ancak iki tarafın rızasıyla veya icra takibinin kesinleşmesiyle ya da kesinleşmiş mahkeme kararına dayanarak geri verebilir.\n\nKiraya veren, kira sözleşmesinin sona ermesini izleyen üç ay içinde kiracıya karşı kira sözleşmesiyle ilgili bir dava açtığını veya icra ya da iflas yoluyla takibe giriştiğini bankaya yazılı olarak bildirmemişse banka, kiracının istemi üzerine güvenceyi geri vermekle yükümlüdür."
+  },
+  {
+    "article_id": "TBK-343",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 343,
+    "title": "Kira bedeli - Genel olarak",
+    "domain": "kira_hukuku",
+    "text": "Kira sözleşmelerinde kira bedelinin belirlenmesi dışında, kiracı aleyhine değişiklik yapılamaz."
+  },
+  {
+    "article_id": "TBK-344",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 344,
+    "title": "Belirlenmesi",
+    "domain": "kira_hukuku",
+    "text": "Tarafların yenilenen kira dönemlerinde uygulanacak kira bedeline ilişkin anlaşmaları, bir önceki kira yılında tüketici fiyat endeksindeki oniki aylık ortalamalara göre değişim oranını geçmemek koşuluyla geçerlidir. Bu kural, bir yıldan daha uzun süreli kira sözleşmelerinde de uygulanır.\n\nTaraflarca bu konuda bir anlaşma yapılmamışsa, kira bedeli, bir önceki kira yılının tüketici fiyat endeksindeki oniki aylık ortalamalara göre değişim oranını geçmemek koşuluyla hâkim tarafından, kiralananın durumu göz önüne alınarak hakkaniyete göre belirlenir.\n\nTaraflarca bu konuda bir anlaşma yapılıp yapılmadığına bakılmaksızın, beş yıldan uzun süreli veya beş yıldan sonra yenilenen kira sözleşmelerinde ve bundan sonraki her beş yılın sonunda, yeni kira yılında uygulanacak kira bedeli, hâkim tarafından tüketici fiyat endeksindeki oniki aylık ortalamalara göre değişim oranı, kiralananın durumu ve emsal kira bedelleri göz önünde tutularak hakkaniyete uygun biçimde belirlenir. Her beş yıldan sonraki kira yılında bu biçimde belirlenen kira bedeli, önceki fıkralarda yer alan ilkelere göre değiştirilebilir.\n\nSözleşmede kira bedeli yabancı para olarak kararlaştırılmışsa 20/2/1930 tarihli ve 1567 sayılı Türk Parasının Kıymetini Koruma Hakkında Kanun hükümleri saklı kalmak şartıyla, beş yıl geçmedikçe kira bedelinde değişiklik yapılamaz. Ancak, bu Kanunun, “Aşırı ifa güçlüğü” başlıklı 138 inci maddesi hükmü saklıdır. Beş yıl geçtikten sonra kira bedelinin belirlenmesinde, yabancı paranın değerindeki değişiklikler de göz önünde tutularak üçüncü fıkra hükmü uygulanır."
+  },
+  {
+    "article_id": "TBK-345",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 345,
+    "title": "Dava açma süresi ve kararın etkisi",
+    "domain": "kira_hukuku",
+    "text": "Kira bedelinin belirlenmesine ilişkin dava her zaman açılabilir.\n\nAncak, bu dava, yeni dönemin başlangıcından en geç otuz gün önceki bir tarihte açıldığı ya da kiraya veren tarafından bu süre içinde kira bedelinin artırılacağına ilişkin olarak kiracıya yazılı bildirimde bulunulmuş olması koşuluyla, izleyen yeni kira dönemi sonuna kadar açıldığı takdirde, mahkemece belirlenecek kira bedeli, bu yeni kira döneminin başlangıcından itibaren kiracıyı bağlar.\n\nSözleşmede yeni kira döneminde kira bedelinin artırılacağına ilişkin bir hüküm varsa, yeni kira döneminin sonuna kadar açılacak davada mahkemece belirlenecek kira bedeli de, bu yeni dönemin başlangıcından itibaren geçerli olur."
+  },
+  {
+    "article_id": "TBK-346",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 346,
+    "title": "Kiracı aleyhine düzenleme yasağı",
+    "domain": "kira_hukuku",
+    "text": "Kiracıya, kira bedeli ve yan giderler dışında başka bir ödeme yükümlülüğü getirilemez. Özellikle, kira bedelinin zamanında ödenmemesi hâlinde ceza koşulu ödeneceğine veya sonraki kira bedellerinin muaccel olacağına ilişkin anlaşmalar geçersizdir."
+  },
+  {
+    "article_id": "TBK-347",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 347,
+    "title": "Bildirim yoluyla - Genel olarak",
+    "domain": "kira_hukuku",
+    "text": "Konut ve çatılı işyeri kiralarında kiracı, belirli süreli sözleşmelerin süresinin bitiminden en az onbeş gün önce bildirimde bulunmadıkça, sözleşme aynı koşullarla bir yıl için uzatılmış sayılır. Kiraya veren, sözleşme süresinin bitimine dayanarak sözleşmeyi sona erdiremez. Ancak, on yıllık uzama süresi sonunda kiraya veren, bu süreyi izleyen her uzama yılının bitiminden en az üç ay önce bildirimde bulunmak koşuluyla, herhangi bir sebep göstermeksizin sözleşmeye son verebilir.\n\nBelirsiz süreli kira sözleşmelerinde, kiracı her zaman, kiraya veren ise kiranın başlangıcından on yıl geçtikten sonra, genel hükümlere göre fesih bildirimiyle sözleşmeyi sona erdirebilirler.\n\nGenel hükümlere göre fesih hakkının kullanılabileceği durumlarda, kiraya veren veya kiracı sözleşmeyi sona erdirebilir."
+  },
+  {
+    "article_id": "TBK-348",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 348,
+    "title": "Bildirimin geçerliliği - Şekil",
+    "domain": "kira_hukuku",
+    "text": "Konut ve çatılı işyeri kiralarında fesih bildiriminin geçerliliği, yazılı şekilde yapılmasına bağlıdır."
+  },
+  {
+    "article_id": "TBK-349",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 349,
+    "title": "Aile konutu",
+    "domain": "kira_hukuku",
+    "text": "Aile konutu olarak kullanılmak üzere kiralanan taşınmazlarda kiracı, eşinin açık rızası olmadıkça kira sözleşmesini feshedemez.\n\nBu rızanın alınması mümkün olmazsa veya eş haklı sebep olmaksızın rızasını vermekten kaçınırsa kiracı, hâkimden bu konuda bir karar vermesini isteyebilir.\n\nKiracı olmayan eşin, kiraya verene bildirimde bulunarak kira sözleşmesinin tarafı sıfatını kazanması hâlinde kiraya veren, fesih bildirimi ile fesih ihtarına bağlı bir ödeme süresini kiracıya ve eşine ayrı ayrı bildirmek zorundadır."
+  },
+  {
+    "article_id": "TBK-350",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 350,
+    "title": "Gereksinim, yeniden inşa ve imar",
+    "domain": "kira_hukuku",
+    "text": "Kiraya veren, kira sözleşmesini;\n\n1. Kiralananı kendisi, eşi, altsoyu, üstsoyu veya kanun gereği bakmakla yükümlü olduğu diğer kişiler için konut ya da işyeri gereksinimi sebebiyle kullanma zorunluluğu varsa,\n\n2. Kiralananın yeniden inşası veya imarı amacıyla esaslı onarımı, genişletilmesi ya da değiştirilmesi gerekli ve bu işler sırasında kiralananın kullanımı imkânsız ise,\n\nbelirli süreli sözleşmelerde sürenin sonunda, belirsiz süreli sözleşmelerde kiraya ilişkin genel hükümlere göre fesih dönemine ve fesih bildirimi için öngörülen sürelere uyularak belirlenecek tarihten başlayarak bir ay içinde açacağı dava ile sona erdirebilir."
+  },
+  {
+    "article_id": "TBK-351",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 351,
+    "title": "Yeni malikin gereksinimi",
+    "domain": "kira_hukuku",
+    "text": "Kiralananı sonradan edinen kişi, onu kendisi, eşi, altsoyu, üstsoyu veya kanun gereği bakmakla yükümlü olduğu diğer kişiler için konut veya işyeri gereksinimi sebebiyle kullanma zorunluluğu varsa, edinme tarihinden başlayarak bir ay içinde durumu kiracıya yazılı olarak bildirmek koşuluyla, kira sözleşmesini altı ay sonra açacağı bir davayla sona erdirebilir.\n\nKiralananı sonradan edinen kişi, dilerse gereksinim sebebiyle sözleşmeyi sona erdirme hakkını, sözleşme süresinin bitiminden başlayarak bir ay içinde açacağı dava yoluyla da kullanabilir."
+  },
+  {
+    "article_id": "TBK-352",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 352,
+    "title": "Kiracıdan kaynaklanan sebeplerle",
+    "domain": "kira_hukuku",
+    "text": "Kiracı, kiralananın teslim edilmesinden sonra, kiraya verene karşı, kiralananı belli bir tarihte boşaltmayı yazılı olarak üstlendiği hâlde boşaltmamışsa kiraya veren, kira sözleşmesini bu tarihten başlayarak bir ay içinde icraya başvurmak veya dava açmak suretiyle sona erdirebilir.\n\nKiracı, bir yıldan kısa süreli kira sözleşmelerinde kira süresi içinde; bir yıl ve daha uzun süreli kira sözleşmelerinde ise bir kira yılı veya bir kira yılını aşan süre içinde kira bedelini ödemediği için kendisine yazılı olarak iki haklı ihtarda bulunulmasına sebep olmuşsa kiraya veren, kira süresinin ve bir yıldan uzun süreli kiralarda ihtarların yapıldığı kira yılının bitiminden başlayarak bir ay içinde, dava yoluyla kira sözleşmesini sona erdirebilir.\n\nKiracının veya birlikte yaşadığı eşinin aynı ilçe veya belde belediye sınırları içinde oturmaya elverişli bir konutu bulunması durumunda kiraya veren, kira sözleşmesinin kurulması sırasında bunu bilmiyorsa, sözleşmenin bitiminden başlayarak bir ay içinde sözleşmeyi dava yoluyla sona erdirebilir."
+  },
+  {
+    "article_id": "TBK-353",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 353,
+    "title": "Dava süresinin uzaması",
+    "domain": "kira_hukuku",
+    "text": "Kiraya veren, en geç davanın açılması için öngörülen sürede dava açacağını kiracıya yazılı olarak bildirmişse, dava açma süresi bir kira yılı için uzamış sayılır."
+  },
+  {
+    "article_id": "TBK-354",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 354,
+    "title": "Dava sebeplerinin sınırlılığı",
+    "domain": "kira_hukuku",
+    "text": "Dava yoluyla kira sözleşmesinin sona erdirilmesine ilişkin hükümler, kiracı aleyhine değiştirilemez."
+  },
+  {
+    "article_id": "TBK-355",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 355,
+    "title": "Yeniden kiralama yasağı",
+    "domain": "kira_hukuku",
+    "text": "Kiraya veren, gereksinim amacıyla kiralananın boşaltılmasını sağladığında, haklı sebep olmaksızın, kiralananı üç yıl geçmedikçe eski kiracısından başkasına kiralayamaz.\n\nYeniden inşa ve imar amacıyla boşaltılması sağlanan taşınmazlar, eski hâli ile, haklı sebep olmaksızın üç yıl geçmedikçe başkasına kiralanamaz. Eski kiracının, yeniden inşa ve imarı gerçekleştirilen taşınmazları, yeni durumu ve yeni kira bedeli ile kiralama konusunda öncelik hakkı vardır. Bu hakkın, kiraya verenin yapacağı yazılı bildirimi izleyen bir ay içinde kullanılması gerekir; bu öncelik hakkı sona erdirilmedikçe, taşınmaz üç yıl geçmeden başkasına kiralanamaz.\n\nKiraya veren, bu hükümlere aykırı davrandığı takdirde, eski kiracısına son kira yılında ödenmiş olan bir yıllık kira bedelinden az olmamak üzere tazminat ödemekle yükümlüdür."
+  },
+  {
+    "article_id": "TBK-356",
+    "law": "6098 Sayılı Türk Borçlar Kanunu",
+    "article_no": 356,
+    "title": "Kiracının ölümünde sözleşmenin sürdürülmesi",
+    "domain": "kira_hukuku",
+    "text": "Ölen kiracının ortakları veya bu ortakların aynı meslek ve sanatı yürüten mirasçıları ve ölen kiracı ile birlikte aynı konutta oturanlar, sözleşmeye ve kanun hükümlerine uydukları sürece, taraf olarak kira sözleşmesini sürdürebilirler."
+  }
+]
