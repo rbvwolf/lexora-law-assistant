@@ -1,0 +1,75 @@
+B. Borçlunun temerrüdü
+I. Koşulları
+MADDE 117- Muaccel bir borcun borçlusu, alacaklının ihtarıyla temerrüde düşer.
+
+Borcun ifa edileceği gün, birlikte belirlenmiş veya sözleşmede saklı tutulan bir hakka dayanarak taraflardan biri usulüne uygun bir bildirimde bulunmak suretiyle belirlemişse, bu günün geçmesiyle; haksız fiilde fiilin işlendiği, sebepsiz zenginleşmede ise zenginleşmenin gerçekleştiği tarihte borçlu temerrüde düşmüş olur. Ancak sebepsiz zenginleşenin iyiniyetli olduğu hâllerde temerrüt için bildirim şarttır.
+
+ 
+
+II. Hükümleri
+1. Genel olarak
+a. Gecikme tazminatı
+MADDE 118- Temerrüde düşen borçlu, temerrüde düşmekte kusuru olmadığını ispat etmedikçe, borcun geç ifasından dolayı alacaklının uğradığı zararı gidermekle yükümlüdür.
+
+ 
+
+b. Beklenmedik hâlden sorumluluk
+MADDE 119- Temerrüde düşen borçlu, beklenmedik hâl sebebiyle doğacak zarardan sorumludur.
+
+Borçlu, temerrüde düşmekte kusuru olmadığını veya borcunu zamanında ifa etmiş olsaydı bile beklenmedik hâlin ifa konusu şeye zarar vereceğini ispat ederek bu sorumluluktan kurtulabilir.
+
+ 
+
+2. Temerrüt faizi
+a. Genel olarak
+MADDE 120- Uygulanacak yıllık temerrüt faizi oranı, sözleşmede kararlaştırılmamışsa, faiz borcunun doğduğu tarihte yürürlükte olan mevzuat hükümlerine göre belirlenir.
+
+Sözleşme ile kararlaştırılacak yıllık temerrüt faizi oranı, birinci fıkra uyarınca belirlenen yıllık faiz oranının yüzde yüz fazlasını aşamaz.
+
+Akdî faiz oranı kararlaştırılmakla birlikte sözleşmede temerrüt faizi kararlaştırılmamışsa ve yıllık akdî faiz oranı da birinci fıkrada belirtilen faiz oranından fazla ise, temerrüt faizi oranı hakkında akdî faiz oranı geçerli olur.
+
+ 
+
+b. Faizlerde, iratlarda ve bağışlamada temerrüt faizi
+MADDE 121- Faiz veya irat borcunu ya da bağışladığı bir miktar parayı ödemekte temerrüde düşen borçlu, icra takibine girişildiği veya dava açıldığı günden başlayarak, temerrüt faizi ödemekle yükümlüdür.
+
+Buna aykırı olarak yapılan anlaşmalar, ceza koşulu hükümlerine tabi olur.
+
+Temerrüt faizine, ayrıca temerrüt faizi yürütülemez.
+
+ 
+
+3. Aşkın zarar
+MADDE 122- Alacaklı, temerrüt faizini aşan bir zarara uğramış olursa, borçlu kendisinin hiçbir kusuru bulunmadığını ispat etmedikçe, bu zararı da gidermekle yükümlüdür.
+
+Temerrüt faizini aşan zarar miktarı görülmekte olan davada belirlenebiliyorsa, davacının istemi üzerine hâkim, esas hakkında karar verirken bu zararın miktarına da hükmeder.
+
+ 
+4. Karşılıklı borç yükleyen sözleşmelerde
+a. Süre verilmesi
+MADDE 123- Karşılıklı borç yükleyen sözleşmelerde, taraflardan biri temerrüde düştüğü takdirde diğeri, borcun ifa edilmesi için uygun bir süre verebilir veya uygun bir süre verilmesini hâkimden isteyebilir.
+
+ 
+
+b. Süre verilmesini gerektirmeyen durumlar
+MADDE 124- Aşağıdaki durumlarda süre verilmesine gerek yoktur:
+
+1. Borçlunun içinde bulunduğu durumdan veya tutumundan süre verilmesinin etkisiz olacağı anlaşılıyorsa.
+
+2. Borçlunun temerrüdü sonucunda borcun ifası alacaklı için yararsız kalmışsa.
+
+3. Borcun ifasının, belirli bir zamanda veya belirli bir süre içinde gerçekleşmemesi üzerine, ifanın artık kabul edilmeyeceği sözleşmeden anlaşılıyorsa.
+
+ 
+
+c. Seçimlik haklar
+MADDE 125- Temerrüde düşen borçlu, verilen süre içinde, borcunu ifa etmemişse veya süre verilmesini gerektirmeyen bir durum söz konusu ise alacaklı, her zaman borcun ifasını ve gecikme sebebiyle tazminat isteme hakkına sahiptir.
+
+Alacaklı, ayrıca borcun ifasından ve gecikme tazminatı isteme hakkından vazgeçtiğini hemen bildirerek, borcun ifa edilmemesinden doğan zararın giderilmesini isteyebilir veya sözleşmeden dönebilir.
+
+Sözleşmeden dönme hâlinde taraflar, karşılıklı olarak ifa yükümlülüğünden kurtulurlar ve daha önce ifa ettikleri edimleri geri isteyebilirler. Bu durumda borçlu, temerrüde düşmekte kusuru olmadığını ispat edemezse alacaklı, sözleşmenin hükümsüz kalması sebebiyle uğradığı zararın giderilmesini de isteyebilir.
+
+ 
+
+d. Sürekli edimli sözleşmelerde
+MADDE 126- İfasına başlanmış sürekli edimli sözleşmelerde, borçlunun temerrüdü hâlinde alacaklı, ifa ve gecikme tazminatı isteyebileceği gibi, sözleşmeyi feshederek, sözleşmenin süresinden önce sona ermesi yüzünden uğradığı zararın giderilmesini de isteyebilir.
