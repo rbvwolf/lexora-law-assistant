@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
-  Search, ChevronRight, BookOpen, ShieldCheck, FileText, Scale, CheckCircle2, XCircle, AlertTriangle, ArrowRight, Lock, Download, MessageSquare, Bot, ChevronDown, Mail, MessageCircle, File, Server, EyeOff, FileCheck, Network, Database, Shield, Send, MapPin, Check, Eye, LogIn, UserPlus, Landmark, Building2, Info, CreditCard, LayoutDashboard, Briefcase, FolderOpen, HelpCircle, Headphones, User, Calculator, Calendar, Gavel, Clock, ArrowLeft, Plus, Mic, Paperclip, MoreVertical, ExternalLink, RefreshCw, FileLock2, AlertOctagon, History
+  Search, ChevronRight, BookOpen, ShieldCheck, FileText, Scale, CheckCircle2, XCircle, AlertTriangle, ArrowRight, Lock, Download, MessageSquare, Bot, ChevronDown, Mail, MessageCircle, File, Server, EyeOff, FileCheck, Network, Database, Shield, Send, MapPin, Check, Eye, LogIn, UserPlus, Landmark, Building2, Info, CreditCard, LayoutDashboard, Briefcase, FolderOpen, HelpCircle, Headphones, User, Calculator, Calendar, Gavel, Clock, ArrowLeft, Plus, Mic, Paperclip, MoreVertical, ExternalLink, RefreshCw, FileLock2, AlertOctagon, History, Loader2
 } from 'lucide-react';
 
 const LexoraLogo = ({ className = "h-12", light = false }) => (
@@ -213,7 +213,7 @@ function Login() {
             <p className="text-slate-500 text-sm mb-8">Hukuki işlemlerinizi güvenle yönetmek için hesabınıza erişin</p>
             <form className="space-y-5">
               <div><label className="block text-xs font-bold text-navy mb-2">E-posta Adresi</label><input type="email" placeholder="ornek@alanadi.com" className="w-full pl-4 pr-4 py-3.5 rounded-xl border border-slate-200 text-sm"/></div>
-              <div><label className="block text-xs font-bold text-navy mb-2">Şifre</label><input type="password" placeholder="••••••••••••" className="w-full pl-4 pr-4 py-3.5 rounded-xl border border-slate-200 text-sm"/></div>
+              <div><label className="block text-xs font-bold text-navy mb-2">Şifre</label><input type={showPassword ? "text" : "password"} placeholder="••••••••••••" className="w-full pl-4 pr-4 py-3.5 rounded-xl border border-slate-200 text-sm"/></div>
               <Link to="/app/sihirbaz" className="w-full bg-navy hover:bg-navy/90 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 transition-colors shadow-md">Giriş Yap <ArrowRight size={18}/></Link>
             </form>
          </div>
@@ -256,9 +256,49 @@ function Sidebar() {
 }
 
 // -----------------------------------------------------------------
-// A. DİLEKÇE SİHİRBAZI (TAM, HESAPLAYICILI)
+// A. DİLEKÇE SİHİRBAZI (CANLI ÖNİZLEME VE FORM AKIŞI)
 // -----------------------------------------------------------------
 function DashboardWizard() {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  const [currentStep, setCurrentStep] = useState(2);
+  const [formData, setFormData] = useState({
+    muhatapAd: "Hikmet Çetin",
+    muhatapTc: "38291048214",
+    kesideciAd: "Av. Tolga Yılmaz",
+    kesideciTc: "19482910382",
+    kiraBaslangic: "09/01/2022",
+    mevcutKira: "12000",
+    talepKira: "24000"
+  });
+
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('http://localhost:8000/api/v1/documents/templates');
+        if (response.ok) {
+          const data = await response.json();
+          setTemplates(data);
+        }
+      } catch (error) {
+        console.error("Şablonlar çekilemedi:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTemplates();
+  }, []);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   return (
     <div className="flex-1 bg-[#f8fafc] overflow-y-auto p-6">
        <div className="max-w-7xl mx-auto">
@@ -268,82 +308,113 @@ function DashboardWizard() {
           </div>
 
           <div className="flex gap-2 mb-8 overflow-x-auto">
-             <div className="flex-1 bg-white border-2 border-teal rounded-xl p-3 flex items-center gap-3 shrink-0"><div className="w-8 h-8 rounded-full bg-teal text-white flex justify-center items-center"><Check size={16}/></div><div><p className="text-[10px] text-teal font-bold">1. ADIM - TAMAMLANDI</p><p className="text-xs font-bold text-navy">Kategori & Şablon</p></div></div>
-             <div className="flex-1 bg-navy text-white rounded-xl p-3 flex items-center gap-3 shrink-0 shadow-md"><div className="w-8 h-8 rounded-full bg-white text-navy flex justify-center items-center font-bold">2</div><div><p className="text-[10px] text-teal font-bold">AKTİF ADIM</p><p className="text-xs font-bold">Taraf & Uyuşmazlık</p></div></div>
-             <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 opacity-60 shrink-0"><div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex justify-center items-center font-bold">3</div><div><p className="text-[10px] text-slate-400 font-bold">3. ADIM</p><p className="text-xs font-bold text-navy">Deliller & Dayanaklar</p></div></div>
-             <div className="flex-1 bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 opacity-60 shrink-0"><div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex justify-center items-center font-bold">4</div><div><p className="text-[10px] text-slate-400 font-bold">4. ADIM</p><p className="text-xs font-bold text-navy">UYAP / Noter Çıktısı</p></div></div>
+             <div className="flex-1 bg-white border-2 border-teal rounded-xl p-3 flex items-center gap-3 shrink-0 cursor-pointer" onClick={() => setCurrentStep(1)}>
+               <div className="w-8 h-8 rounded-full bg-teal text-white flex justify-center items-center"><Check size={16}/></div>
+               <div><p className="text-[10px] text-teal font-bold">1. ADIM - TAMAMLANDI</p><p className="text-xs font-bold text-navy">Kategori & Şablon</p></div>
+             </div>
+             
+             <div className={`flex-1 rounded-xl p-3 flex items-center gap-3 shrink-0 shadow-md ${currentStep === 2 ? 'bg-navy text-white' : 'bg-white border-2 border-teal text-navy cursor-pointer'}`} onClick={() => setCurrentStep(2)}>
+               <div className={`w-8 h-8 rounded-full flex justify-center items-center font-bold ${currentStep === 2 ? 'bg-white text-navy' : 'bg-teal text-white'}`}>{currentStep > 2 ? <Check size={16}/> : '2'}</div>
+               <div><p className={`text-[10px] font-bold ${currentStep === 2 ? 'text-teal' : 'text-teal'}`}>{currentStep === 2 ? 'AKTİF ADIM' : 'TAMAMLANDI'}</p><p className="text-xs font-bold">Taraf & Uyuşmazlık</p></div>
+             </div>
+             
+             <div className={`flex-1 rounded-xl p-3 flex items-center gap-3 shrink-0 ${currentStep === 3 ? 'bg-navy text-white shadow-md' : 'bg-white border border-slate-200 opacity-60'}`}>
+               <div className={`w-8 h-8 rounded-full flex justify-center items-center font-bold ${currentStep === 3 ? 'bg-white text-navy' : 'bg-slate-100 text-slate-400'}`}>3</div>
+               <div><p className={`text-[10px] font-bold ${currentStep === 3 ? 'text-teal' : 'text-slate-400'}`}>{currentStep === 3 ? 'AKTİF ADIM' : '3. ADIM'}</p><p className={`text-xs font-bold ${currentStep === 3 ? 'text-white' : 'text-navy'}`}>Deliller & Dayanaklar</p></div>
+             </div>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-6">
              <div className="flex-1 space-y-6">
-                {/* Taraf Bilgileri Formu */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                   <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-navy flex items-center gap-2"><User size={18}/> 1. Taraf Bilgileri</h3><span className="text-[10px] font-bold text-teal bg-teal/10 px-2 py-1 rounded flex items-center gap-1"><Shield size={12}/> KVKK Otomatik Maskeleme Açık</span></div>
-                   <div className="mb-6">
-                     <p className="text-xs font-bold text-slate-500 mb-3">Muhatap (Ev Sahibi / Kiraya Veren)</p>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-[10px] text-slate-400 block mb-1">Ad Soyad / Unvan</label><input type="text" defaultValue="Hikmet Çetin" className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50"/></div>
-                        <div><label className="text-[10px] text-slate-400 block mb-1">T.C. Kimlik / Vergi No</label><div className="relative"><input type="text" defaultValue="38291048214" className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50"/><ShieldCheck className="absolute right-3 top-1/2 -translate-y-1/2 text-teal" size={16}/></div></div>
-                     </div>
-                   </div>
-                   <div>
-                     <p className="text-xs font-bold text-slate-500 mb-3 flex justify-between">Keşideci (Kiracı) <span className="text-teal">Profilinizden Aktarıldı</span></p>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-[10px] text-slate-400 block mb-1">Ad Soyad</label><input type="text" defaultValue="Av. Tolga Yılmaz" className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50"/></div>
-                        <div><label className="text-[10px] text-slate-400 block mb-1">T.C. Kimlik No</label><input type="text" defaultValue="19482910382" className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50"/></div>
-                     </div>
-                   </div>
-                </div>
+                
+                {currentStep === 2 && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+                       <div className="flex justify-between items-center mb-6"><h3 className="font-bold text-navy flex items-center gap-2"><User size={18}/> 1. Taraf Bilgileri</h3><span className="text-[10px] font-bold text-teal bg-teal/10 px-2 py-1 rounded flex items-center gap-1"><Shield size={12}/> KVKK Otomatik Maskeleme Açık</span></div>
+                       <div className="mb-6">
+                         <p className="text-xs font-bold text-slate-500 mb-3">Muhatap (Ev Sahibi / Kiraya Veren)</p>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div><label className="text-[10px] text-slate-400 block mb-1">Ad Soyad / Unvan</label><input type="text" name="muhatapAd" value={formData.muhatapAd} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50 focus:border-teal transition-colors"/></div>
+                            <div><label className="text-[10px] text-slate-400 block mb-1">T.C. Kimlik / Vergi No</label><div className="relative"><input type="text" name="muhatapTc" value={formData.muhatapTc} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50 focus:border-teal transition-colors"/><ShieldCheck className="absolute right-3 top-1/2 -translate-y-1/2 text-teal" size={16}/></div></div>
+                         </div>
+                       </div>
+                       <div>
+                         <p className="text-xs font-bold text-slate-500 mb-3 flex justify-between">Keşideci (Kiracı) <span className="text-teal">Profilinizden Aktarıldı</span></p>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div><label className="text-[10px] text-slate-400 block mb-1">Ad Soyad</label><input type="text" name="kesideciAd" value={formData.kesideciAd} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50 focus:border-teal transition-colors"/></div>
+                            <div><label className="text-[10px] text-slate-400 block mb-1">T.C. Kimlik No</label><input type="text" name="kesideciTc" value={formData.kesideciTc} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50 focus:border-teal transition-colors"/></div>
+                         </div>
+                       </div>
+                    </div>
 
-                {/* Kira Artış Hesaplayıcı */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                   <h3 className="font-bold text-navy flex items-center gap-2 mb-6"><FileText size={18}/> 2. Kira Sözleşmesi ve Artış Değerleri</h3>
-                   <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div><label className="text-[10px] text-slate-400 block mb-1">Kira Başlangıç Tarihi</label><div className="relative"><input type="text" defaultValue="09/01/2022" className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50"/><Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/></div></div>
-                      <div><label className="text-[10px] text-slate-400 block mb-1">Mevcut Ödenen Kira</label><div className="relative"><input type="text" defaultValue="12000" className="w-full border rounded-lg p-2.5 text-sm outline-none font-bold"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₺ / ay</span></div></div>
-                      <div><label className="text-[10px] text-slate-400 block mb-1">Talep Edilen Kira</label><div className="relative"><input type="text" defaultValue="24000" className="w-full border border-red-300 bg-red-50 text-red-600 rounded-lg p-2.5 text-sm outline-none font-bold"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 text-xs">₺ / ay</span></div></div>
-                   </div>
-                   <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 relative overflow-hidden">
-                      <div className="flex justify-between items-center mb-4"><div className="flex items-center gap-2 text-teal font-bold text-sm"><Calculator size={16}/> TBK m. 344 Yasal Tavan Artış Hesaplayıcı</div><div className="text-[10px] font-bold text-slate-500 bg-white px-2 py-1 rounded border">TÜFE 12 Aylık Ort.: %62,51</div></div>
-                      <div className="grid grid-cols-3 gap-4">
-                         <div className="bg-white p-3 rounded-lg border"><p className="text-[10px] text-slate-500 font-bold mb-1">Yasal Azami Artış Tutarı</p><p className="text-lg font-bold text-navy">19.501,20 TL</p><p className="text-[10px] text-teal font-bold">+7.501,20 ₺</p></div>
-                         <div className="bg-red-50 p-3 rounded-lg border border-red-200"><p className="text-[10px] text-red-500 font-bold mb-1">Geçersiz Fahiş Fark</p><p className="text-lg font-bold text-red-600">-4.498,80 TL</p><p className="text-[10px] text-red-500 font-bold">Hukuken Hükümsüz Talep</p></div>
-                         <div className="bg-teal/10 p-3 rounded-lg border border-teal/20"><p className="text-[10px] text-teal font-bold mb-1">İhtarda Ödeneceği Bildirilen</p><p className="text-lg font-bold text-navy">19.501,20 TL</p><p className="text-[10px] text-teal font-bold">Yasal Oranda Havale</p></div>
-                      </div>
-                   </div>
-                </div>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                       <h3 className="font-bold text-navy flex items-center gap-2 mb-6"><FileText size={18}/> 2. Kira Sözleşmesi ve Artış Değerleri</h3>
+                       <div className="grid grid-cols-3 gap-4 mb-6">
+                          <div><label className="text-[10px] text-slate-400 block mb-1">Kira Başlangıç Tarihi</label><div className="relative"><input type="text" name="kiraBaslangic" value={formData.kiraBaslangic} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 text-sm outline-none bg-slate-50 focus:border-teal transition-colors"/><Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/></div></div>
+                          <div><label className="text-[10px] text-slate-400 block mb-1">Mevcut Ödenen Kira</label><div className="relative"><input type="text" name="mevcutKira" value={formData.mevcutKira} onChange={handleInputChange} className="w-full border rounded-lg p-2.5 text-sm outline-none font-bold focus:border-teal transition-colors"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">₺ / ay</span></div></div>
+                          <div><label className="text-[10px] text-slate-400 block mb-1">Talep Edilen Kira</label><div className="relative"><input type="text" name="talepKira" value={formData.talepKira} onChange={handleInputChange} className="w-full border border-red-300 bg-red-50 text-red-600 rounded-lg p-2.5 text-sm outline-none font-bold focus:border-red-500 transition-colors"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 text-xs">₺ / ay</span></div></div>
+                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === 3 && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                       <h3 className="font-bold text-navy flex items-center gap-2 mb-6"><Paperclip size={18}/> 3. Ek Deliller ve Hukuki Dayanaklar</h3>
+                       <p className="text-sm text-slate-500 mb-4">İhtarnamenin gücünü artırmak için sisteme kira sözleşmesini veya banka dekontlarını ekleyebilirsiniz.</p>
+                       <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer mb-6">
+                         <Download size={24} className="mx-auto text-slate-400 mb-2"/>
+                         <p className="text-sm font-bold text-navy">Belgeleri buraya sürükleyin veya seçin</p>
+                         <p className="text-xs text-slate-500">PDF, JPG veya PNG (Maks 10MB)</p>
+                       </div>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex justify-between items-center mt-6">
-                  <button className="bg-white border border-slate-200 text-navy font-bold py-3 px-6 rounded-xl flex items-center gap-2"><ArrowLeft size={16}/> 1. Şablona Dön</button>
-                  <button className="bg-navy text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-md">3. Adıma İlerle (Deliller) <ArrowRight size={16}/></button>
+                  {currentStep > 1 && (
+                    <button onClick={() => setCurrentStep(prev => prev - 1)} className="bg-white border border-slate-200 text-navy font-bold py-3 px-6 rounded-xl flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                      <ArrowLeft size={16}/> Geri
+                    </button>
+                  )}
+                  <div className="flex-1"></div>
+                  {currentStep === 2 && (
+                    <button onClick={() => setCurrentStep(3)} className="bg-navy hover:bg-navy/90 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-md transition-all">
+                      3. Adıma İlerle (Deliller) <ArrowRight size={16}/>
+                    </button>
+                  )}
+                  {currentStep === 3 && (
+                    <button className="bg-teal hover:bg-teal/90 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-md transition-all">
+                      Belgeyi Tamamla ve İndir <Check size={16}/>
+                    </button>
+                  )}
                 </div>
              </div>
 
-             {/* Canlı A4 Önizleme */}
              <div className="w-full lg:w-[450px] shrink-0">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sticky top-6">
                    <div className="flex justify-between items-center mb-4">
                      <h3 className="font-bold text-navy text-sm flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-teal animate-pulse"></div> Canlı Önizleme (A4)</h3>
-                     <div className="flex gap-2"><button className="text-[10px] font-bold text-navy bg-slate-100 px-2 py-1 rounded">.UDF</button><button className="text-[10px] font-bold text-navy bg-slate-100 px-2 py-1 rounded">.DOCX</button><button className="bg-teal text-white text-[10px] font-bold px-3 py-1 rounded flex items-center gap-1"><Download size={12}/> İndir</button></div>
+                     <div className="flex gap-2"><button className="text-[10px] font-bold text-navy bg-slate-100 px-2 py-1 rounded">.UDF</button><button className="bg-teal text-white text-[10px] font-bold px-3 py-1 rounded flex items-center gap-1"><Download size={12}/> İndir</button></div>
                    </div>
                    
-                   <div className="w-full aspect-[1/1.414] bg-white border border-slate-200 shadow-inner p-6 overflow-y-auto text-[8px] sm:text-[9px] font-serif text-slate-800 leading-relaxed custom-scrollbar">
-                      <div className="flex justify-between mb-8 text-slate-400 border-b border-slate-100 pb-2"><span>LEXORA RESMİ İHTARNAME PROTOKOLÜ</span><span>TARİH: 24.10.2026</span></div>
+                   <div className="w-full aspect-[1/1.414] bg-white border border-slate-200 shadow-inner p-6 overflow-y-auto text-[8px] sm:text-[9px] font-serif text-slate-800 leading-relaxed custom-scrollbar transition-all">
+                      <div className="flex justify-between mb-8 text-slate-400 border-b border-slate-100 pb-2"><span>LEXORA RESMİ İHTARNAME PROTOKOLÜ</span><span>TARİH: {new Date().toLocaleDateString('tr-TR')}</span></div>
                       <div className="text-center font-bold mb-6"><p className="text-sm">ANKARA NÖBETÇİ NOTERLİĞİNE</p><p className="italic font-normal">(Muhataba tebliğ edilmek üzere bir nüshası talep edilmektedir)</p></div>
                       <div className="text-center font-bold tracking-[0.3em] mb-8 text-sm">İ H T A R N A M E</div>
                       <table className="w-full mb-6">
                         <tbody>
-                          <tr><td className="font-bold w-24 align-top pb-2">KEŞİDECİ:</td><td className="pb-2">Av. Tolga Yılmaz (T.C. Kimlik: 194*****382)</td></tr>
+                          <tr><td className="font-bold w-24 align-top pb-2">KEŞİDECİ:</td><td className="pb-2"><span className="bg-teal/10">{formData.kesideciAd || '...'}</span> (T.C. Kimlik: <span className="bg-teal/10">{formData.kesideciTc || '...'}</span>)</td></tr>
                           <tr><td className="font-bold align-top pb-2">ADRES:</td><td className="pb-2">Ayrancı Mah. Güvenlik Cad. 24/5 Çankaya / ANKARA</td></tr>
-                          <tr><td className="font-bold align-top pb-2">MUHATAP:</td><td className="pb-2">Hikmet Çetin (T.C. Kimlik: 382*****214)</td></tr>
-                          <tr><td className="font-bold align-top pb-2">KONU:</td><td className="pb-2 font-bold">01/09/2022 başlangıç tarihli kira akdi gereğince talep edilen fahiş kira artışının reddi ile 6098 sayılı TBK m. 344 uyarınca TÜFE 12 aylık ortalamalar tavanı olan %62,51 oranında yasal artış yapılacağının bildirimidir.</td></tr>
+                          <tr><td className="font-bold align-top pb-2">MUHATAP:</td><td className="pb-2"><span className="bg-amber-100">{formData.muhatapAd || '...'}</span> (T.C. Kimlik: <span className="bg-amber-100">{formData.muhatapTc || '...'}</span>)</td></tr>
+                          <tr><td className="font-bold align-top pb-2">KONU:</td><td className="pb-2 font-bold"><span className="bg-blue-50">{formData.kiraBaslangic}</span> başlangıç tarihli kira akdi gereğince talep edilen fahiş kira artışının reddi ile 6098 sayılı TBK m. 344 uyarınca TÜFE 12 aylık ortalamalar tavanı olan %62,51 oranında yasal artış yapılacağının bildirimidir.</td></tr>
                         </tbody>
                       </table>
                       <p className="font-bold mb-2">SAYIN MUHATAP;</p>
-                      <p className="mb-2 indent-4 text-justify">1. Tarafınızla akdedilen yukarıda adresi belirtilen taşınmaza ilişkin kira sözleşmesi uyarınca aylık kira bedeli <span className="font-bold underline">12.000,00 TL</span> olarak düzenli biçimde banka hesabınıza eksiksiz yatırılmaktadır.</p>
-                      <p className="mb-2 indent-4 text-justify">2. Tarafımıza şahsınızca şifahen iletilen aylık <span className="font-bold text-red-600">24.000,00 TL</span> kira bedeli talebi (%100 artış), 6098 sayılı Türk Borçlar Kanunu'nun (TBK) emredici nitelikteki <span className="font-bold">344/2. fıkrasına</span> açıkça aykırıdır. İlgili kanun maddesi uyarınca yenilenen kira dönemlerinde uygulanacak kira bedeline ilişkin anlaşmalar, bir önceki kira yılında Türkiye İstatistik Kurumu (TÜİK) tarafından açıklanan tüketici fiyat endeksindeki on iki aylık ortalamalara göre değişim oranını geçmemek koşuluyla geçerlidir.</p>
+                      <p className="mb-2 indent-4 text-justify">1. Tarafınızla akdedilen yukarıda adresi belirtilen taşınmaza ilişkin kira sözleşmesi uyarınca aylık kira bedeli <span className="font-bold underline bg-teal/10">{formData.mevcutKira || '0'} TL</span> olarak düzenli biçimde banka hesabınıza eksiksiz yatırılmaktadır.</p>
+                      <p className="mb-2 indent-4 text-justify">2. Tarafımıza şahsınızca şifahen iletilen aylık <span className="font-bold text-red-600 bg-red-50">{formData.talepKira || '0'} TL</span> kira bedeli talebi, 6098 sayılı Türk Borçlar Kanunu'nun (TBK) emredici nitelikteki <span className="font-bold">344/2. fıkrasına</span> açıkça aykırıdır.</p>
                    </div>
-                   <div className="mt-4 bg-teal/10 border border-teal/20 rounded-lg p-3 flex items-center gap-3"><CheckCircle2 className="text-teal" size={20}/><div><p className="text-xs font-bold text-navy">UYAP Şablon Doğrulaması Başarılı</p><p className="text-[10px] text-slate-500">UYAP Döküman Editörü (.udf) v4.4 Uyumlu</p></div></div>
                 </div>
              </div>
           </div>
@@ -440,9 +511,64 @@ function DashboardRehber() {
 }
 
 // -----------------------------------------------------------------
-// C. DANIŞ AI CO-PILOT
+// C. DANIŞ AI CO-PILOT (API ENTEGRELİ CHAT)
 // -----------------------------------------------------------------
 function DashboardDanisAI() {
+  const [messages, setMessages] = useState([
+    {
+      sender: "ai",
+      text: "Merhaba! Hukuki sürecinizle ilgili bir soru sorabilir veya belge şablonu oluşturmamı isteyebilirsiniz. T.C. kimlik numaranız ve diğer özel bilgileriniz otomatik maskelenecektir.",
+      intent: null,
+      citations: [],
+      disclaimer: "Bu sistem bir AI asistanıdır; avukatlık hizmeti vermez."
+    }
+  ]);
+  const [inputMsg, setInputMsg] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+
+  const handleSendMessage = async () => {
+    if (!inputMsg.trim()) return;
+
+    const userMessage = { sender: "user", text: inputMsg };
+    setMessages((prev) => [...prev, userMessage]);
+    setInputMsg("");
+    setIsTyping(true);
+
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/chat/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: "lexora-web-session-001",
+          message: inputMsg
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const aiMessage = {
+          sender: "ai",
+          text: data.answer,
+          intent: data.intent,
+          citations: data.citations || [],
+          disclaimer: data.disclaimer || "Bu sistem bir AI asistanıdır; avukatlık hizmeti vermez."
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        throw new Error("Backend hatası");
+      }
+    } catch (error) {
+      console.error("Mesaj gönderilemedi:", error);
+      setMessages((prev) => [...prev, {
+        sender: "ai",
+        text: "Şu anda sunucuya bağlanılamıyor. (Backend açık olduğunda AI yanıtı buraya gelecektir).",
+        disclaimer: "Bu sistem bir AI asistanıdır; avukatlık hizmeti vermez."
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   return (
     <div className="flex-1 bg-[#f8fafc] flex overflow-hidden">
       <div className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0">
@@ -466,60 +592,70 @@ function DashboardDanisAI() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-           <div className="flex justify-end">
-             <div className="max-w-[80%]">
-               <div className="flex justify-end items-center gap-2 mb-1"><span className="text-xs font-bold text-slate-500">Siz (Müvekkil Modu)</span><div className="w-6 h-6 rounded-full bg-navy text-white text-[10px] font-bold flex justify-center items-center">K</div></div>
-               <div className="bg-navy text-white p-4 rounded-2xl rounded-tr-none text-sm leading-relaxed shadow-md">Ev sahibim kira sözleşmemin 1 yılı dolduğu için kiramı 12.000 TL'den 25.000 TL'ye çıkarmak istiyor. Kabul etmezsem haftaya çıkmamı söyledi. Ne yapmalıyım?</div>
-             </div>
-           </div>
+           {messages.map((msg, idx) => (
+             msg.sender === 'user' ? (
+                <div key={idx} className="flex justify-end">
+                  <div className="max-w-[80%]">
+                    <div className="flex justify-end items-center gap-2 mb-1"><span className="text-xs font-bold text-slate-500">Siz (Müvekkil Modu)</span><div className="w-6 h-6 rounded-full bg-navy text-white text-[10px] font-bold flex justify-center items-center">K</div></div>
+                    <div className="bg-navy text-white p-4 rounded-2xl rounded-tr-none text-sm leading-relaxed shadow-md">{msg.text}</div>
+                  </div>
+                </div>
+             ) : (
+                <div key={idx} className="flex justify-start">
+                  <div className="max-w-[90%]">
+                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 rounded-full bg-teal flex justify-center items-center text-white"><Scale size={16}/></div><span className="text-xs font-bold text-navy">Danış AI Hukuk Mütalaası</span><span className="text-[10px] font-bold text-teal bg-teal/10 px-2 py-0.5 rounded ml-2">Hukuki Koruma Aktif</span></div>
+                    <div className="bg-white border border-slate-200 p-5 rounded-2xl rounded-tl-none shadow-sm space-y-4">
+                       <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                       
+                       {msg.citations && msg.citations.length > 0 && (
+                         <div className="pl-7">
+                           <p className="text-[10px] font-bold text-slate-400 tracking-widest mb-2">DAYANAK KANUN MADDELERİ</p>
+                           <div className="flex gap-2 flex-wrap">
+                             {msg.citations.map((cit, i) => (
+                               <span key={i} className="text-xs font-bold text-teal bg-teal/5 border border-teal/10 px-2 py-1.5 rounded-lg flex items-center gap-1"><Scale size={12}/> {cit.law_name} {cit.article_id}</span>
+                             ))}
+                           </div>
+                         </div>
+                       )}
 
-           <div className="flex justify-start">
-             <div className="max-w-[90%]">
-               <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 rounded-full bg-teal flex justify-center items-center text-white"><Scale size={16}/></div><span className="text-xs font-bold text-navy">Danış AI Hukuk Mütalaası</span><span className="text-[10px] text-slate-400">• Motor v4.2</span><span className="text-[10px] font-bold text-teal bg-teal/10 px-2 py-0.5 rounded ml-2">Kesin Hukuki Koruma</span></div>
-               <div className="bg-white border border-slate-200 p-5 rounded-2xl rounded-tl-none shadow-sm space-y-5">
-                  <div>
-                    <h4 className="text-sm font-bold text-navy mb-2 flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-navy text-white text-[10px] flex justify-center items-center">1</div> Hukuki Durum Tespiti & Tahliye Geçersizliği</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed pl-7"><span className="font-bold text-navy">TBK m. 347</span> gereğince, konut ve çatılı işyeri kira sözleşmelerinde sözleşme süresinin (1 yılın) dolması gerekçesiyle <span className="font-bold">kiraya verenin tek taraflı fesih ve tahliye hakkı bulunmamaktadır.</span> Ev sahibinizin <i>"haftaya evi boşaltın"</i> ihtarı kanunen hükümsüzdür.</p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-navy mb-2 flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-navy text-white text-[10px] flex justify-center items-center">2</div> Kira Artış Oranı Tavanı</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed pl-7 mb-3"><span className="font-bold text-navy">TBK m. 344/1</span> hükmünce yenilenen kira dönemlerinde uygulanabilecek azami zam oranı, <span className="font-bold">TÜİK tarafından açıklanan son 12 aylık TÜFE ortalamasıdır.</span></p>
-                    <div className="ml-7 bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
-                      <div><p className="text-[10px] font-bold text-slate-500 mb-1">Mevcut Kira Bedeli</p><p className="text-lg font-bold text-navy">12.000 ₺</p></div>
-                      <div><p className="text-[10px] font-bold text-teal mb-1">Yasal Tavan Tahmini (%62,5)</p><p className="text-lg font-bold text-teal">~19.501 ₺</p></div>
-                      <div className="text-right"><p className="text-[10px] font-bold text-red-500 mb-1">Ev Sahibinin Talebi</p><p className="text-lg font-bold text-red-500 line-through">25.000 ₺</p></div>
+                       {msg.disclaimer && (
+                          <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg flex items-start gap-2 mt-4 ml-7">
+                            <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={14}/>
+                            <p className="text-[10px] text-amber-800 leading-relaxed"><span className="font-bold">Yasal Uyarı:</span> {msg.disclaimer}</p>
+                          </div>
+                       )}
                     </div>
                   </div>
-                  <div className="pl-7">
-                    <p className="text-[10px] font-bold text-slate-400 tracking-widest mb-2">DAYANAK KANUN MADDELERİ</p>
-                    <div className="flex gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-teal bg-teal/5 border border-teal/10 px-2 py-1.5 rounded-lg flex items-center gap-1"><Scale size={12}/> TBK Madde 344</span>
-                      <span className="text-xs font-bold text-teal bg-teal/5 border border-teal/10 px-2 py-1.5 rounded-lg flex items-center gap-1"><Scale size={12}/> TBK Madde 347</span>
-                    </div>
-                  </div>
-                  <div className="pl-7 border-t border-slate-100 pt-4">
-                    <p className="text-[10px] font-bold text-slate-400 tracking-widest mb-3">TAVSİYE EDİLEN SOMUT HUKUKİ ADIMLAR:</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl"><h5 className="text-xs font-bold text-navy mb-1 flex items-center gap-1"><Mail size={14} className="text-blue-600"/> 1. İtiraz İhtarnamesi Keşide Edin</h5><p className="text-[11px] text-slate-600 leading-relaxed">Fahiş kira artışını kabul etmediğinizi noter kanalıyla veya yazılı bildirin.</p></div>
-                      <div className="bg-teal/5 border border-teal/10 p-4 rounded-xl"><h5 className="text-xs font-bold text-navy mb-1 flex items-center gap-1"><Landmark size={14} className="text-teal"/> 2. Yasal Tutarı Bankadan Ödeyin</h5><p className="text-[11px] text-slate-600 leading-relaxed">TÜFE oranlı kirayı sözleşmedeki IBAN'a '2025 Kira Bedeli' yazarak yatırın.</p></div>
-                    </div>
-                  </div>
+                </div>
+             )
+           ))}
+           {isTyping && (
+             <div className="flex justify-start">
+               <div className="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2">
+                 <Loader2 className="animate-spin text-teal" size={16}/> <span className="text-xs text-slate-500 font-medium">Hukuki kaynaklar taranıyor...</span>
                </div>
              </div>
-           </div>
+           )}
         </div>
 
         <div className="p-6 bg-white border-t border-slate-200 shrink-0">
           <div className="max-w-4xl mx-auto relative">
              <div className="absolute -top-8 left-4 text-[10px] font-bold text-teal bg-teal/10 px-2 py-1 rounded-t-lg flex items-center gap-1"><Lock size={12}/> Gizlilik Kalkanı Açık</div>
              <div className="border border-slate-200 rounded-2xl rounded-tl-none bg-slate-50 p-2 flex flex-col focus-within:border-teal focus-within:bg-white transition-colors shadow-sm">
-                <textarea rows="2" placeholder="Örn: Ev sahibim sözleşmeyi elden yenilemek istiyor veya tahliye taahhüdü imzalatmak istiyor, ne yapmalıyım?..." className="w-full bg-transparent resize-none outline-none p-2 text-sm text-navy placeholder:text-slate-400"></textarea>
+                <textarea 
+                  rows="2" 
+                  value={inputMsg}
+                  onChange={(e) => setInputMsg(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                  placeholder="Hukuki sorunuzu buraya yazın..." 
+                  className="w-full bg-transparent resize-none outline-none p-2 text-sm text-navy placeholder:text-slate-400"
+                />
                 <div className="flex justify-between items-center mt-2">
                    <div className="flex gap-2">
                      <button className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-slate-100"><Paperclip size={14}/> Belge / PDF Ekle</button>
                      <button className="text-xs font-bold text-slate-500 bg-white border border-slate-200 w-8 h-8 rounded-lg flex justify-center items-center hover:bg-slate-100"><Mic size={14}/></button>
                    </div>
-                   <button className="bg-teal hover:bg-teal/90 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm">Hukuki Analiz İste <Send size={14}/></button>
+                   <button onClick={handleSendMessage} disabled={isTyping} className="bg-teal hover:bg-teal/90 disabled:bg-teal/50 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm">Hukuki Analiz İste <Send size={14}/></button>
                 </div>
              </div>
           </div>
@@ -549,15 +685,6 @@ function DashboardDanisAI() {
              <p className="mb-3">"Tarafların yenilenen kira dönemlerinde uygulanacak kira bedeline ilişkin anlaşmaları, bir önceki kira yılında tüketici fiyat endeksindeki oniki aylık ortalamalara göre değişim oranını geçmemek koşuluyla geçerlidir..."</p>
              <p className="font-bold text-navy mb-1">Madde 347 - Fesih Bildirimi ile Sona Erme</p>
              <p>"Konut ve çatılı işyeri kiralarında kiracı, belirli süreli sözleşmelerin süresinin bitiminden en az onbeş gün önce bildirimde bulunmadıkça, sözleşme aynı koşullarla bir yıl için uzatılmış sayılır."</p>
-           </div>
-         </div>
-
-         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-           <h4 className="text-xs font-bold text-navy mb-3 flex items-center gap-2"><CheckCircle2 size={14} className="text-teal"/> Kiracı Hakları Kontrol Listesi</h4>
-           <div className="space-y-2 text-[11px] font-medium text-slate-600">
-             <div className="flex items-start gap-2"><CheckCircle2 size={14} className="text-teal shrink-0 mt-0.5"/> 10 yıllık uzama süreniz dolmadı</div>
-             <div className="flex items-start gap-2"><CheckCircle2 size={14} className="text-teal shrink-0 mt-0.5"/> Yazılı tahliye taahhüdü vermediniz</div>
-             <div className="flex items-start gap-2"><CheckCircle2 size={14} className="text-teal shrink-0 mt-0.5"/> Kiralarınızı zamanında ödüyorsunuz</div>
            </div>
          </div>
       </div>
