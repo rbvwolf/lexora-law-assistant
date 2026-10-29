@@ -1,0 +1,335 @@
+{
+ "source": "Rendered before the doc_layouts refactor (Desktop ornek_ihtarname.docx, 29.10.2026). Fictional data.",
+ "paragraphs": [
+  {
+   "text": "Ankara Nöbetçi Noterliğine",
+   "alignment": "CENTER (1)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "Ankara",
+     true
+    ],
+    [
+     " Nöbetçi Noterliğine",
+     true
+    ]
+   ]
+  },
+  {
+   "text": "İHTARNAME",
+   "alignment": "CENTER (1)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "İHTARNAME",
+     true
+    ]
+   ]
+  },
+  {
+   "text": "KEŞİDECİ (Kiracı): Deniz Örnekoğlu (T.C. Kimlik No: 12345678901)",
+   "alignment": "LEFT (0)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "KEŞİDECİ (Kiracı): ",
+     true
+    ],
+    [
+     "Deniz Örnekoğlu",
+     false
+    ],
+    [
+     " (T.C. Kimlik No: 12345678901)",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "Adres: Örnek Mah. Deneme Sok. No: 5/3 Çankaya / ANKARA",
+   "alignment": "LEFT (0)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "Adres: ",
+     true
+    ],
+    [
+     "Örnek Mah. Deneme Sok. No: 5/3 Çankaya / ANKARA",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "MUHATAP (Kiraya Veren): Şebnem Kurgusal",
+   "alignment": "LEFT (0)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "MUHATAP (Kiraya Veren): ",
+     true
+    ],
+    [
+     "Şebnem Kurgusal",
+     false
+    ],
+    [
+     "",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "Adres: Hayali Mah. Taslak Cad. No: 18/1 Yenimahalle / ANKARA",
+   "alignment": "LEFT (0)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "Adres: ",
+     true
+    ],
+    [
+     "Hayali Mah. Taslak Cad. No: 18/1 Yenimahalle / ANKARA",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "KİRALANAN: Örnek Mah. Deneme Sok. No: 5/3 Çankaya / ANKARA",
+   "alignment": "LEFT (0)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "KİRALANAN: ",
+     true
+    ],
+    [
+     "Örnek Mah. Deneme Sok. No: 5/3 Çankaya / ANKARA",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "KONU: 01.09.2022 başlangıç tarihli kira sözleşmesine ilişkin olarak talep edilen kira artışının, 6098 sayılı Türk Borçlar Kanunu m. 344 uyarınca yasal sınırı aştığının ve bu sınırı aşan kısmın kabul edilmediğinin bildirilmesidir.",
+   "alignment": "JUSTIFY (3)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "KONU: ",
+     true
+    ],
+    [
+     "01.09.2022",
+     false
+    ],
+    [
+     " başlangıç tarihli kira sözleşmesine ilişkin olarak talep edilen kira artışının, 6098 sayılı Türk Borçlar Kanunu m. 344 uyarınca yasal sınırı aştığının ve bu sınırı aşan kısmın kabul edilmediğinin bildirilmesidir.",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "AÇIKLAMALAR:",
+   "alignment": "LEFT (0)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "AÇIKLAMALAR:",
+     true
+    ]
+   ]
+  },
+  {
+   "text": "1. Yukarıda adresi belirtilen taşınmazı, 01.09.2022 başlangıç tarihli kira sözleşmesi uyarınca kiracı sıfatıyla kullanmaktayım. Mevcut aylık kira bedeli 12.000,00 TL'dir.",
+   "alignment": "JUSTIFY (3)",
+   "first_line_indent": 450215,
+   "runs": [
+    [
+     "1. Yukarıda adresi belirtilen taşınmazı, ",
+     false
+    ],
+    [
+     "01.09.2022",
+     false
+    ],
+    [
+     " başlangıç tarihli kira sözleşmesi uyarınca kiracı sıfatıyla kullanmaktayım. Mevcut aylık kira bedeli ",
+     false
+    ],
+    [
+     "12.000,00",
+     true
+    ],
+    [
+     " TL'dir.",
+     true
+    ]
+   ]
+  },
+  {
+   "text": "2. Tarafınızca yeni kira dönemi için aylık 24.000,00 TL kira bedeli talep edilmiştir. Bu talep, mevcut kira bedeline göre %100,00 oranında bir artışa karşılık gelmektedir.",
+   "alignment": "JUSTIFY (3)",
+   "first_line_indent": 450215,
+   "runs": [
+    [
+     "2. Tarafınızca yeni kira dönemi için aylık ",
+     false
+    ],
+    [
+     "24.000,00",
+     true
+    ],
+    [
+     " TL",
+     true
+    ],
+    [
+     " kira bedeli talep edilmiştir. Bu talep, mevcut kira bedeline göre %",
+     false
+    ],
+    [
+     "100,00",
+     false
+    ],
+    [
+     " oranında bir artışa karşılık gelmektedir.",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "3. 6098 sayılı Türk Borçlar Kanunu'nun 344. maddesinin birinci fıkrası uyarınca, tarafların yenilenen kira dönemlerinde uygulanacak kira bedeline ilişkin anlaşmaları, bir önceki kira yılında tüketici fiyat endeksindeki on iki aylık ortalamalara göre değişim oranını geçmemek koşuluyla geçerlidir. Bu oran %62,51 olup, buna göre yeni kira döneminde uygulanabilecek azami aylık kira bedeli 19.501,20 TL'dir.",
+   "alignment": "JUSTIFY (3)",
+   "first_line_indent": 450215,
+   "runs": [
+    [
+     "3. 6098 sayılı Türk Borçlar Kanunu'nun 344. maddesinin birinci fıkrası uyarınca, tarafların yenilenen kira dönemlerinde uygulanacak kira bedeline ilişkin anlaşmaları, bir önceki kira yılında tüketici fiyat endeksindeki on iki aylık ortalamalara göre değişim oranını geçmemek koşuluyla geçerlidir. Bu oran %",
+     false
+    ],
+    [
+     "62,51",
+     false
+    ],
+    [
+     " olup, buna göre yeni kira döneminde uygulanabilecek azami aylık kira bedeli ",
+     false
+    ],
+    [
+     "19.501,20",
+     true
+    ],
+    [
+     " TL",
+     true
+    ],
+    [
+     "'dir.",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "4. Açıklanan nedenlerle, yasal sınırı aşan kira artışı talebinizi kabul etmediğimi; yeni kira döneminde aylık kira bedelini yasal sınır olan 19.501,20 TL üzerinden ödeyeceğimi bildiririm.",
+   "alignment": "JUSTIFY (3)",
+   "first_line_indent": 450215,
+   "runs": [
+    [
+     "4. Açıklanan nedenlerle, yasal sınırı aşan kira artışı talebinizi kabul etmediğimi; yeni kira döneminde aylık kira bedelini yasal sınır olan ",
+     false
+    ],
+    [
+     "19.501,20",
+     true
+    ],
+    [
+     " TL",
+     true
+    ],
+    [
+     " üzerinden ödeyeceğimi bildiririm.",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "SONUÇ:",
+   "alignment": "LEFT (0)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "SONUÇ:",
+     true
+    ]
+   ]
+  },
+  {
+   "text": "İşbu ihtarnamenin bir suretinin muhataba tebliğini, bir suretinin dairenizde saklanmasını ve tebliğ şerhini havi bir suretinin tarafıma verilmesini saygılarımla talep ederim.",
+   "alignment": "JUSTIFY (3)",
+   "first_line_indent": 450215,
+   "runs": [
+    [
+     "İşbu ihtarnamenin bir suretinin muhataba tebliğini, bir suretinin dairenizde saklanmasını ve tebliğ şerhini havi bir suretinin tarafıma verilmesini saygılarımla talep ederim.",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "29.10.2026",
+   "alignment": "RIGHT (2)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "29.10.2026",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "Keşideci",
+   "alignment": "RIGHT (2)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "Keşideci",
+     true
+    ]
+   ]
+  },
+  {
+   "text": "Deniz Örnekoğlu",
+   "alignment": "RIGHT (2)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "Deniz Örnekoğlu",
+     false
+    ]
+   ]
+  },
+  {
+   "text": "İmza",
+   "alignment": "RIGHT (2)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "İmza",
+     false
+    ]
+   ]
+  }
+ ],
+ "footer": [
+  {
+   "text": "Taslak belge. Bu sistem bir AI asistanıdır; avukatlık hizmeti vermez.",
+   "alignment": "CENTER (1)",
+   "first_line_indent": null,
+   "runs": [
+    [
+     "Taslak belge. Bu sistem bir AI asistanıdır; avukatlık hizmeti vermez.",
+     false
+    ]
+   ]
+  }
+ ]
+}

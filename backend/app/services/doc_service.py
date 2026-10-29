@@ -10,9 +10,20 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from docxtpl import DocxTemplate
+from fpdf import FPDF
 
 from app.core.config import settings
 from app.schemas.document import FieldType, TemplateFieldErrors, TemplateFieldSchema, TemplateSchema
+from app.services.doc_layouts import (
+    FIRST_LINE_INDENT_CM,
+    FONT_SIZE_PT,
+    FOOTER_FONT_SIZE_PT,
+    PAGE_MARGIN_CM,
+    SPACE_AFTER_PT,
+    DocumentLayout,
+    fill_tags,
+    get_layout,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +36,33 @@ IBAN_TR_RE = re.compile(r"^TR\d{24}$")
 
 KIRA_ARTIS_TEMPLATE_ID = "kira_artis_itiraz_ihtarname"
 TUFE_ORAN_MAX = Decimal("200")
+
+# How often the background task deletes expired files (see app.main lifespan)
+DOCUMENT_SWEEP_INTERVAL = timedelta(minutes=10)
+DOWNLOADABLE_SUFFIXES = (".docx", ".pdf")
+
+PDF_FONT_FAMILY = "LiberationSerif"
+PDF_FONT_FILES = {
+    "": "LiberationSerif-Regular.ttf",
+    "B": "LiberationSerif-Bold.ttf",
+    "I": "LiberationSerif-Italic.ttf",
+}
+_PDF_ALIGN = {"left": "L", "center": "C", "right": "R", "justify": "J"}
+_PT_TO_MM = 25.4 / 72
+
+
+class DocumentAssetMissingError(RuntimeError):
+    """A real template's .docx or PDF font is missing outside development. Message holds no paths."""
+
+
+def _now() -> datetime:
+    """Single clock for expiry; tests replace it instead of waiting."""
+    return datetime.now(timezone.utc)
+
+
+def _is_expired(path: Path, now_ts: float) -> bool:
+    """Expiry rule: file mtime (set to the generation time) + DOCUMENT_TTL_MINUTES."""
+    return path.stat().st_mtime + settings.DOCUMENT_TTL_MINUTES * 60 <= now_ts
 
 
 def _is_blank(value: Any) -> bool:
@@ -140,7 +178,7 @@ def _matches_type(value: Any, field_type: FieldType) -> bool:
 
 
 class DocService:
-    """Service handling dual direct export (.docx via docxtpl, .pdf via WeasyPrint/fpdf2)."""
+    """Service handling dual direct export (.docx via docxtpl, .pdf via fpdf2) and expiry."""
 
     def __init__(self):
         self.templates: Dict[str, TemplateSchema] = {
@@ -280,6 +318,58 @@ class DocService:
         doc.save(str(tmp_path))
         os.replace(tmp_path, out_path)
 
+    def font_paths(self) -> Dict[str, Path]:
+        """PDF font files under settings.FONTS_DIR, keyed by fpdf2 style."""
+        return {style: Path(settings.FONTS_DIR) / name for style, name in PDF_FONT_FILES.items()}
+
+    def _fonts_available(self) -> bool:
+        return all(p.is_file() for p in self.font_paths().values())
+
+    def _render_pdf(self, layout: DocumentLayout, context: Dict[str, str], out_path: Path) -> None:
+        """Render the shared layout with fpdf2 (same context as the .docx, no second calculation)."""
+        footer_text = layout.footer
+
+        class _LayoutPDF(FPDF):
+            def footer(self) -> None:
+                self.set_y(-15)
+                self.set_font(PDF_FONT_FAMILY, "I", FOOTER_FONT_SIZE_PT)
+                self.cell(0, 10, footer_text, align="C")
+
+        margin_mm = PAGE_MARGIN_CM * 10
+        pdf = _LayoutPDF(format="A4", unit="mm")
+        pdf.set_margins(margin_mm, margin_mm, margin_mm)
+        pdf.set_auto_page_break(True, margin=margin_mm)
+        for style, path in self.font_paths().items():
+            pdf.add_font(PDF_FONT_FAMILY, style, str(path))
+        # Metadata: template title only, never PII
+        pdf.set_title(layout.pdf_title)
+        pdf.set_author("lexora")
+        pdf.set_creator("lexora")
+        pdf.add_page()
+        pdf.set_font(PDF_FONT_FAMILY, "", FONT_SIZE_PT)
+
+        # Segments are written one by one (no markdown), so "**" in user input stays literal text
+        with pdf.text_columns() as columns:
+            for spec in layout.paragraphs:
+                with columns.paragraph(
+                    text_align=_PDF_ALIGN[spec.align],
+                    bottom_margin=SPACE_AFTER_PT * _PT_TO_MM,
+                    first_line_indent=FIRST_LINE_INDENT_CM * 10 if spec.first_line_indent else 0,
+                ) as paragraph:
+                    for text, bold in spec.segments:
+                        pdf.set_font(PDF_FONT_FAMILY, "B" if bold else "", FONT_SIZE_PT)
+                        paragraph.write(fill_tags(text, context))
+
+        tmp_path = out_path.with_name(out_path.name + ".tmp")
+        pdf.output(str(tmp_path))
+        os.replace(tmp_path, out_path)
+
+    @staticmethod
+    def _write_mock(path: Path, kind: str, template_id: str) -> None:
+        # Mock placeholders carry the template id only, never case data or PII
+        prefix = "%PDF-1.4 " if kind == "PDF" else ""
+        path.write_text(f"{prefix}Mock {kind} Document for template {template_id}", encoding="utf-8")
+
     def filter_case_params(self, template: TemplateSchema, case_params: Dict[str, Any]) -> Dict[str, Any]:
         """Drop case_params keys not defined by the template, logging dropped key names only."""
         allowed = {f.field_name for f in template.case_param_fields}
@@ -304,7 +394,8 @@ class DocService:
             case_params = self.filter_case_params(template, case_params)
 
         file_id = str(uuid.uuid4())
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=2)
+        generated_at = _now()
+        expires_at = generated_at + timedelta(minutes=settings.DOCUMENT_TTL_MINUTES)
 
         # File names carry only the random file_id, never PII
         docx_filename = f"{file_id}.docx"
@@ -314,16 +405,43 @@ class DocService:
         pdf_path = STORAGE_TEMP_DIR / pdf_filename
 
         context = self.build_render_context(template_id, case_params, pii)
+        layout = get_layout(template_id) if context is not None else None
         template_path = self.template_path(template_id)
-        if context is not None and template_path.is_file():
-            await asyncio.to_thread(self._render_docx, template_path, context, docx_path)
-        else:
-            if context is not None:
-                logger.warning("Template file missing for %s; writing mock .docx", template_id)
-            # Mock placeholders carry the template id only, never case data or PII
-            docx_path.write_text(f"Mock DOCX Document for template {template_id}", encoding="utf-8")
-        # PDF export is not implemented yet
-        pdf_path.write_text(f"%PDF-1.4 Mock PDF Document for template {template_id}", encoding="utf-8")
+        render_docx = context is not None and template_path.is_file()
+        render_pdf = layout is not None and self._fonts_available()
+
+        if context is not None and not (render_docx and render_pdf):
+            missing = [name for name, ok in (("docx_template", render_docx), ("pdf_fonts", render_pdf)) if not ok]
+            if settings.ENVIRONMENT != "development":
+                raise DocumentAssetMissingError(f"Missing document assets for {template_id}: {missing}")
+            logger.warning("Missing document assets for %s: %s; writing mock files (development only)", template_id, missing)
+
+        docx_job = (
+            (self._render_docx, template_path, context, docx_path)
+            if render_docx
+            else (self._write_mock, docx_path, "DOCX", template_id)
+        )
+        pdf_job = (
+            (self._render_pdf, layout, context, pdf_path)
+            if render_pdf
+            else (self._write_mock, pdf_path, "PDF", template_id)
+        )
+        # Both renderers are synchronous; run them in parallel off the event loop
+        results = await asyncio.gather(
+            asyncio.to_thread(*docx_job), asyncio.to_thread(*pdf_job), return_exceptions=True
+        )
+        failures = [r for r in results if isinstance(r, BaseException)]
+        if failures:
+            # Never leave half a pair (or a .tmp) behind
+            for path in (docx_path, pdf_path):
+                for candidate in (path, path.with_name(path.name + ".tmp")):
+                    candidate.unlink(missing_ok=True)
+            raise failures[0]
+
+        # mtime = generation time, so expiry is exactly expires_at (survives restarts)
+        ts = generated_at.timestamp()
+        for path in (docx_path, pdf_path):
+            os.utime(path, (ts, ts))
 
         docx_url = f"/api/v1/documents/download/{docx_filename}"
         pdf_url = f"/api/v1/documents/download/{pdf_filename}"
@@ -331,12 +449,61 @@ class DocService:
         return file_id, docx_url, pdf_url, expires_at
 
     def resolve_download_path(self, file_id: str) -> Optional[Path]:
-        """Resolve and validate filepath for download, preventing directory traversal."""
+        """Resolve a downloadable file, preventing directory traversal.
+
+        Only .docx/.pdf are served (never .tmp). An expired file is deleted on the spot,
+        so it is never served even if the sweeper has not run yet.
+        """
         safe_name = os.path.basename(file_id)
+        if not safe_name.endswith(DOWNLOADABLE_SUFFIXES):
+            return None
         candidate = STORAGE_TEMP_DIR / safe_name
-        if candidate.exists() and candidate.is_file():
-            return candidate
-        return None
+        try:
+            if not candidate.is_file():
+                return None
+            if _is_expired(candidate, _now().timestamp()):
+                candidate.unlink(missing_ok=True)
+                return None
+        except FileNotFoundError:
+            return None
+        return candidate
+
+    def sweep_expired(self) -> int:
+        """Delete every expired regular file in STORAGE_TEMP_DIR (incl. stale .tmp). Returns count.
+
+        Uses mtime, so files left over from before a restart are handled too. If
+        DOCUMENT_TTL_MINUTES changes between restarts, the new TTL applies to old files.
+        """
+        now_ts = _now().timestamp()
+        try:
+            entries = list(STORAGE_TEMP_DIR.iterdir())
+        except FileNotFoundError:
+            return 0
+        removed = 0
+        for path in entries:
+            try:
+                if path.is_file() and _is_expired(path, now_ts):
+                    path.unlink()
+                    removed += 1
+            except FileNotFoundError:
+                continue  # another worker or a download got there first
+            except OSError as exc:
+                logger.warning("Could not delete an expired document file: %s", type(exc).__name__)
+        if removed:
+            logger.info("Deleted %d expired document file(s)", removed)
+        return removed
+
+    async def sweep_expired_async(self) -> int:
+        return await asyncio.to_thread(self.sweep_expired)
+
+    async def run_sweeper(self) -> None:
+        """Sweep immediately (startup), then every DOCUMENT_SWEEP_INTERVAL until cancelled."""
+        while True:
+            try:
+                await self.sweep_expired_async()
+            except Exception as exc:  # keep the loop alive; the next round retries
+                logger.warning("Expired document sweep failed: %s", type(exc).__name__)
+            await asyncio.sleep(DOCUMENT_SWEEP_INTERVAL.total_seconds())
 
 
 # Singleton instance

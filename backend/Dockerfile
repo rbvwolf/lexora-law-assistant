@@ -26,7 +26,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/app /app/app
 COPY backend/scripts /app/scripts
 COPY data/templates /app/data/templates
+COPY data/fonts /app/data/fonts
 ENV TEMPLATES_DIR=/app/data/templates
+ENV FONTS_DIR=/app/data/fonts
 
 # Expose default backend port
 EXPOSE 8000

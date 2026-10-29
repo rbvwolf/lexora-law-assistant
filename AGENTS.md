@@ -47,6 +47,7 @@ lexora-law-assistant/
 ├── data/
 │   ├── laws/                  ← Article-based law JSON/MD files (Rental, Consumer, etc.)
 │   ├── templates/             ← .docx and .html petition templates
+│   ├── fonts/                 ← TTF fonts for PDF export (Liberation Serif, SIL OFL 1.1, see OFL.txt)
 │   └── eval/                  ← 30-scenario eval set + prompt injection tests
 ├── backend/
 │   ├── Dockerfile                ← Required for WeasyPrint C-lib dependencies
@@ -112,7 +113,7 @@ Returns active template list with their expected field schemas.
 Both files are generated in parallel from the **same Pydantic data model** (no format conversion).
 
 ### `GET /api/v1/documents/download/{file_id}`
-Serves the generated `.docx` or `.pdf` file. Files are stored in a temporary directory and **auto-deleted after expiry** (KVKK compliance: no permanent PII storage on server).
+Serves the generated `.docx` or `.pdf` file. Files are stored in a temporary directory and **auto-deleted after expiry** (KVKK compliance: no permanent PII storage on server). Expiry is `DOCUMENT_TTL_MINUTES` (default 120) after generation; an expired file returns 404 `FILE_EXPIRED_OR_NOT_FOUND` and a background sweeper deletes expired files every 10 minutes.
 
 ---
 
