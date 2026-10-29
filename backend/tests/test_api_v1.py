@@ -362,3 +362,133 @@ async def test_document_generate_extra_case_param_dropped(caplog):
         docx_filename = response.json()["docx_url"].split("/")[-1]
         dl_response = await client.get(f"/api/v1/documents/download/{docx_filename}")
         assert "gizli_deger_123" not in dl_response.text
+
+
+def _kira_artis_payload():
+    return {
+        "template_id": "kira_artis_itiraz_ihtarname",
+        "case_params": {
+            "kira_baslangic_tarihi": "2022-09-01",
+            "mevcut_kira_tutari": 12000,
+            "talep_edilen_kira_tutari": 24000,
+            "tufe_oran": 62.51,
+            "noter_ili": "Ankara",
+        },
+        "pii": {
+            "kiraci_ad_soyad": "Tolga Yılmaz",
+            "kiraci_adres": "Ayrancı Mah. 24/5 Çankaya / ANKARA",
+            "kiraya_veren_ad_soyad": "Hikmet Çetin",
+            "kiraya_veren_adres": "Kızılay Mah. 10/3 Çankaya / ANKARA",
+            "tasinmaz_adresi": "Bahçelievler Mah. 12/4 Çankaya / ANKARA",
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_document_generate_kira_artis_real_docx():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/v1/documents/generate", json=_kira_artis_payload())
+        assert response.status_code == 200
+        docx_filename = response.json()["docx_url"].split("/")[-1]
+        dl_response = await client.get(f"/api/v1/documents/download/{docx_filename}")
+        assert dl_response.status_code == 200
+        # A real .docx is a zip archive
+        assert dl_response.content[:2] == b"PK"
+
+
+@pytest.mark.asyncio
+async def test_document_generate_kira_artis_request_within_ceiling_rejected():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_artis_payload()
+        payload["case_params"]["talep_edilen_kira_tutari"] = 19000
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "TEMPLATE_FIELDS_INVALID"
+        assert "talep_edilen_kira_tutari" in data["message"]
+        for amount in ("19000", "19.000", "12000", "19501", "19.501"):
+            assert amount not in response.text
+
+
+@pytest.mark.asyncio
+async def test_document_generate_kira_artis_real_pdf():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/v1/documents/generate", json=_kira_artis_payload())
+        assert response.status_code == 200
+        pdf_filename = response.json()["pdf_url"].split("/")[-1]
+        dl_response = await client.get(f"/api/v1/documents/download/{pdf_filename}")
+        assert dl_response.status_code == 200
+        assert dl_response.headers["content-type"] == "application/pdf"
+        assert dl_response.content.startswith(b"%PDF-")
+        assert b"Mock" not in dl_response.content
+
+
+@pytest.mark.parametrize("missing_setting", ["TEMPLATES_DIR", "FONTS_DIR"])
+@pytest.mark.asyncio
+async def test_document_generate_missing_asset_returns_500_outside_development(monkeypatch, tmp_path, missing_setting):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, missing_setting, str(tmp_path / "gizli_klasor"))
+    # The app's 500 handler answers, then Starlette re-raises; don't let it reach the test
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_artis_payload()
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 500
+        assert response.json() == {
+            "error_code": "INTERNAL_SERVER_ERROR",
+            "message": "Beklenmeyen bir sunucu hatası meydana geldi. Lütfen tekrar deneyiniz.",
+        }
+        assert "gizli_klasor" not in response.text
+        for value in payload["pii"].values():
+            assert value not in response.text
+
+
+@pytest.mark.asyncio
+async def test_document_download_after_expiry_returns_404(monkeypatch):
+    from datetime import timedelta
+
+    from app.services import doc_service as doc_service_module
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/v1/documents/generate", json=_kira_artis_payload())
+        data = response.json()
+        docx_filename = data["docx_url"].split("/")[-1]
+
+        expired_at = doc_service_module._now() + timedelta(minutes=doc_service_module.settings.DOCUMENT_TTL_MINUTES)
+        monkeypatch.setattr(doc_service_module, "_now", lambda: expired_at)
+        dl_response = await client.get(f"/api/v1/documents/download/{docx_filename}")
+        assert dl_response.status_code == 404
+        assert dl_response.json() == {
+            "error_code": "FILE_EXPIRED_OR_NOT_FOUND",
+            "message": "İstenen dosya bulunamadı veya süresi doldu.",
+        }
+
+
+@pytest.mark.asyncio
+async def test_lifespan_starts_sweeper_and_cancels_it_on_shutdown(monkeypatch):
+    import asyncio
+
+    from app.services.doc_service import doc_service
+
+    started = asyncio.Event()
+    state = {"cancelled": False}
+
+    async def fake_sweeper():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            state["cancelled"] = True
+            raise
+
+    monkeypatch.setattr(doc_service, "run_sweeper", fake_sweeper)
+    async with app.router.lifespan_context(app):
+        await asyncio.wait_for(started.wait(), timeout=1)
+    # Exiting the context did not raise CancelledError, and the task saw the cancel
+    assert state["cancelled"]

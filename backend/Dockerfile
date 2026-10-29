@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-0 \
     libffi-dev \
     shared-mime-info \
     fonts-liberation \
@@ -25,6 +25,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source code into container
 COPY backend/app /app/app
 COPY backend/scripts /app/scripts
+COPY data/templates /app/data/templates
+COPY data/fonts /app/data/fonts
+ENV TEMPLATES_DIR=/app/data/templates
+ENV FONTS_DIR=/app/data/fonts
 
 # Expose default backend port
 EXPOSE 8000

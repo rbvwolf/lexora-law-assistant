@@ -1,4 +1,8 @@
+import asyncio
+import contextlib
 import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1 import chat, documents, health
 from app.core.config import settings
 from app.schemas.common import ErrorResponse
+from app.services.doc_service import doc_service
 
 # Configure root logging
 logging.basicConfig(
@@ -15,6 +20,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger("lexora")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run the expired-document sweeper (KVKK) for the app's lifetime; cancel it on shutdown."""
+    sweeper = asyncio.create_task(doc_service.run_sweeper())
+    try:
+        yield
+    finally:
+        sweeper.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await sweeper
+
+
 # FastAPI App Instance
 app = FastAPI(
     title="lexora: AI Powered Law Assistant API",
@@ -22,6 +40,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS Middleware for Next.js frontend integration

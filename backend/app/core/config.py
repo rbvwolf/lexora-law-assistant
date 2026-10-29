@@ -32,6 +32,21 @@ class Settings(BaseSettings):
         description="Embedding model name used for law articles and RAG retrieval",
     )
 
+    # Document templates (.docx files named <template_id>.docx)
+    TEMPLATES_DIR: str = Field(
+        default="../data/templates",
+        description="Directory holding .docx document templates (relative to the working directory)",
+    )
+    FONTS_DIR: str = Field(
+        default="../data/fonts",
+        description="Directory holding TTF fonts for PDF export (relative to the working directory)",
+    )
+    DOCUMENT_TTL_MINUTES: int = Field(
+        default=120,
+        ge=1,
+        description="Minutes a generated document stays downloadable before it is deleted",
+    )
+
     # Relational DB & Auth (Supabase)
     SUPABASE_URL: str = Field(
         default="https://placeholder-project.supabase.co",
