@@ -362,3 +362,51 @@ async def test_document_generate_extra_case_param_dropped(caplog):
         docx_filename = response.json()["docx_url"].split("/")[-1]
         dl_response = await client.get(f"/api/v1/documents/download/{docx_filename}")
         assert "gizli_deger_123" not in dl_response.text
+
+
+def _kira_artis_payload():
+    return {
+        "template_id": "kira_artis_itiraz_ihtarname",
+        "case_params": {
+            "kira_baslangic_tarihi": "2022-09-01",
+            "mevcut_kira_tutari": 12000,
+            "talep_edilen_kira_tutari": 24000,
+            "tufe_oran": 62.51,
+            "noter_ili": "Ankara",
+        },
+        "pii": {
+            "kiraci_ad_soyad": "Tolga Yılmaz",
+            "kiraci_adres": "Ayrancı Mah. 24/5 Çankaya / ANKARA",
+            "kiraya_veren_ad_soyad": "Hikmet Çetin",
+            "kiraya_veren_adres": "Kızılay Mah. 10/3 Çankaya / ANKARA",
+            "tasinmaz_adresi": "Bahçelievler Mah. 12/4 Çankaya / ANKARA",
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_document_generate_kira_artis_real_docx():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/v1/documents/generate", json=_kira_artis_payload())
+        assert response.status_code == 200
+        docx_filename = response.json()["docx_url"].split("/")[-1]
+        dl_response = await client.get(f"/api/v1/documents/download/{docx_filename}")
+        assert dl_response.status_code == 200
+        # A real .docx is a zip archive
+        assert dl_response.content[:2] == b"PK"
+
+
+@pytest.mark.asyncio
+async def test_document_generate_kira_artis_request_within_ceiling_rejected():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = _kira_artis_payload()
+        payload["case_params"]["talep_edilen_kira_tutari"] = 19000
+        response = await client.post("/api/v1/documents/generate", json=payload)
+        assert response.status_code == 422
+        data = response.json()
+        assert data["error_code"] == "TEMPLATE_FIELDS_INVALID"
+        assert "talep_edilen_kira_tutari" in data["message"]
+        for amount in ("19000", "19.000", "12000", "19501", "19.501"):
+            assert amount not in response.text

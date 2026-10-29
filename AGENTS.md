@@ -70,6 +70,8 @@ lexora-law-assistant/
 │   ├── scripts/
 │   │   ├── ingest_laws.py        ← Article-based chunking → ChromaDB ingestion CLI
 │   │   └── run_eval.py           ← hit@5 + LLM-as-judge evaluation CLI
+│   ├── tools/
+│   │   └── build_doc_templates.py ← Generates data/templates/*.docx (keeps docxtpl tags in single runs)
 │   └── tests/
 └── frontend/
     └── src/

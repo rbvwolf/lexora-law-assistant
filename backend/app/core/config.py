@@ -32,6 +32,12 @@ class Settings(BaseSettings):
         description="Embedding model name used for law articles and RAG retrieval",
     )
 
+    # Document templates (.docx files named <template_id>.docx)
+    TEMPLATES_DIR: str = Field(
+        default="../data/templates",
+        description="Directory holding .docx document templates (relative to the working directory)",
+    )
+
     # Relational DB & Auth (Supabase)
     SUPABASE_URL: str = Field(
         default="https://placeholder-project.supabase.co",
