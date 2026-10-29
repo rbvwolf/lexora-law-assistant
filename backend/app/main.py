@@ -43,11 +43,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Middleware for Next.js frontend integration
+# CORS Middleware for the React + Vite frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    # No cookies are used (auth will be a bearer token); enable only if that changes
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

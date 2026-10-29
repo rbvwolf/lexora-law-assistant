@@ -31,7 +31,7 @@
 | **PDF export** | `WeasyPrint` or `fpdf2` | Direct from HTML/Jinja2 (no docx->pdf conversion). Requires OS-level C libs (`libcairo2`, `libpango-1.0-0`, `libgdk-pixbuf`). |
 | **Relational DB / Auth** | Supabase (PostgreSQL) | User sessions, audit logs |
 | **Observability** | Langfuse | Trace every LLM call; PII must be masked before logging |
-| **Frontend** | Next.js (App Router, TypeScript), Tailwind CSS, shadcn/ui | |
+| **Frontend** | React + Vite (JavaScript/JSX), React Router, Tailwind CSS | |
 | **Deployment** | Vercel (frontend), `backend/Dockerfile` → Render or Railway (backend) | Backend **must** ship via `Dockerfile` due to WeasyPrint's native C dependencies. |
 
 ---
@@ -76,7 +76,7 @@ lexora-law-assistant/
 │   └── tests/
 └── frontend/
     └── src/
-        ├── app/               ← Next.js App Router pages
+        ├── app/               ← Page-level views (React Router)
         ├── components/
         │   ├── chat/          ← Chat UI components
         │   ├── document/      ← PII mini-form, document preview, DOCX/PDF download
@@ -135,7 +135,7 @@ Serves the generated `.docx` or `.pdf` file. Files are stored in a temporary dir
 - **Pydantic v2:** Define all request/response schemas in `app/schemas/`. Use `model_validator` for cross-field checks.
 - **Chunking:** Law texts in `data/laws/` must be split per article (`Madde X -`). Each chunk stored in ChromaDB with metadata: `{ "law": str, "article_no": int, "domain": str }`.
 - **Error handling:** Return structured JSON errors `{ "error_code": str, "message": str }`. Never expose stack traces to the client.
-- **TypeScript/Next.js:** Strict mode enabled. No `any` types. API types must match backend Pydantic schemas.
+- **Frontend (React + Vite):** Strict mode enabled. No `any` types. API types must match backend Pydantic schemas.
 - **Environment variables:** All secrets via `.env` (never hardcoded). Use `pydantic-settings` in `config.py`. Required vars: `GROQ_API_KEY`, `GROQ_MODEL_NAME`, `CHROMA_PERSIST_DIR`, `SUPABASE_URL`, `SUPABASE_KEY`, `LANGFUSE_SECRET_KEY`.
 - **LLM model selection:** Always read model name from `settings.GROQ_MODEL_NAME`. Never hardcode a model string in service code.
 - **Response caching:** Cache identical Groq API calls (keyed on prompt hash) during development and eval runs to avoid hitting free-tier rate limits.
@@ -147,7 +147,7 @@ Serves the generated `.docx` or `.pdf` file. Files are stored in a temporary dir
 
 | Phase | Weeks | Key Deliverables |
 |---|---|---|
-| **Phase 1** | W1-W2 | Repo scaffold, FastAPI skeleton + API contract, Next.js skeleton (mock chat + document preview UI + legal disclaimer banner), law text collection + article-based chunking + ChromaDB ingestion, RAG v0, 1st document template (Jinja2/docxtpl), 15 eval scenarios drafted |
+| **Phase 1** | W1-W2 | Repo scaffold, FastAPI skeleton + API contract, React + Vite skeleton (mock chat + document preview UI + legal disclaimer banner), law text collection + article-based chunking + ChromaDB ingestion, RAG v0, 1st document template (Jinja2/docxtpl), 15 eval scenarios drafted |
 | **Phase 2** | W3-W4 🚩 *Gate 1: Nov 15 Mid-Term Demo* | Structured output param extraction, missing-field questioning loop, intent routing, PII mini-form + parallel `.docx` & `.pdf` generation + download endpoint, Langfuse setup, `hit@5` measurement, eval set completed to 30 scenarios. *(Exit criteria: 1st document type works end-to-end in the UI.)* |
 | **Phase 3** | W5-W6 🚩 *Gate 2: Nov 29 Feature Freeze* | 2nd document template + flow, full legal Q&A screen + faithfulness eval, chat/log PII masking hardening, 15-20 prompt injection & security tests, error state handling + UI polish, staging deploy. *(W5 decision point: add rule-based contract analysis only if Gate 1 passed and mentor data available.)* |
 | **Phase 4** | W7-W8 🏁 *Delivery* | Bug fixes only (no new features), final eval run (30 scenarios, `p95 < 10 s` verified), documentation + README, production deploy, demo rehearsal. |

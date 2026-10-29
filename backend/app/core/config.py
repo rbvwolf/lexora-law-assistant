@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -81,9 +81,23 @@ class Settings(BaseSettings):
         description="Logging level",
     )
     CORS_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000", "http://127.0.0.1:3000"],
-        description="List of allowed CORS origins for Next.js frontend",
+        default=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        description="Allowed CORS origins (exact scheme://host:port, no trailing slash, never '*')",
     )
+
+    @field_validator("CORS_ORIGINS")
+    @classmethod
+    def _validate_cors_origins(cls, origins: List[str]) -> List[str]:
+        # Browsers send Origin without a trailing slash, so "https://site.com/" would never match
+        cleaned = [origin.strip().rstrip("/") for origin in origins]
+        if "*" in cleaned:
+            raise ValueError("CORS_ORIGINS must list explicit origins; '*' is not allowed")
+        return cleaned
 
     def format_passage(self, text: str) -> str:
         """Format a document passage for embedding. multilingual-e5 requires 'passage: ' prefix."""
