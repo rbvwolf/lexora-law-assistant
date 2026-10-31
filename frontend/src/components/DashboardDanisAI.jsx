@@ -1,12 +1,120 @@
-import React from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Plus, FolderOpen, ShieldCheck, FileText, Eye, Database, 
-  Network, Lock, Download, Scale, Mail, Landmark, Paperclip, 
-  Mic, Send, Bot, BookOpen, CheckCircle2, ArrowRight 
+  Network, Lock, Download, Scale, Paperclip, 
+  Mic, Send, Bot, BookOpen, CheckCircle2, ArrowRight, AlertCircle 
 } from 'lucide-react';
+import { ApiError, sendChatMessage } from '../lib/api';
+
+// Same limit as backend ChatRequest.message (max_length=4000)
+const MAX_MESSAGE_LENGTH = 4000;
+// AGENTS.md §5.6; answers carry the backend's own disclaimer field
+const DISCLAIMER = 'Bu sistem bir AI asistanıdır; avukatlık hizmeti vermez.';
+
+// randomUUID exists only in secure contexts (https / localhost); the fallback covers plain-http LAN access
+const createSessionId = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+const AssistantHeader = () => (
+  <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 rounded-full bg-teal flex justify-center items-center text-white"><Scale size={16}/></div><span className="text-xs font-bold text-navy">Danış AI Hukuk Mütalaası</span></div>
+);
+
+const UserBubble = ({ text }) => (
+  <div className="flex justify-end">
+    <div className="max-w-[80%]">
+      <div className="flex justify-end items-center gap-2 mb-1"><span className="text-xs font-bold text-slate-500">Siz (Müvekkil Modu)</span><div className="w-6 h-6 rounded-full bg-navy text-white text-[10px] font-bold flex justify-center items-center">K</div></div>
+      <div className="bg-navy text-white p-4 rounded-2xl rounded-tr-none text-sm leading-relaxed shadow-md whitespace-pre-wrap break-words">{text}</div>
+    </div>
+  </div>
+);
+
+const AssistantBubble = ({ response }) => (
+  <div className="flex justify-start">
+    <div className="max-w-[90%]">
+      <AssistantHeader />
+      <div className="bg-white border border-slate-200 p-5 rounded-2xl rounded-tl-none shadow-sm space-y-5">
+        {/* Plain text on purpose: React escapes it, no markdown/HTML rendering */}
+        <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap break-words">{response.answer}</p>
+        {response.citations?.length > 0 && (
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 tracking-widest mb-2">DAYANAK KANUN MADDELERİ</p>
+            <div className="space-y-2">
+              {response.citations.map((citation, index) => (
+                <div key={`${citation.article_id}-${index}`} className="bg-slate-50 border border-slate-100 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-xs font-bold text-teal bg-teal/5 border border-teal/10 px-2 py-1.5 rounded-lg flex items-center gap-1"><Scale size={12}/> {citation.article_id}</span>
+                    <span className="text-[11px] font-bold text-navy">{citation.law_name}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-3">{citation.text_snippet}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="text-[10px] text-slate-400 border-t border-slate-100 pt-3 flex items-center gap-1"><ShieldCheck size={12} className="shrink-0"/> {response.disclaimer}</p>
+      </div>
+    </div>
+  </div>
+);
 
 const DashboardDanisAI = () => {
+  const [sessionId] = useState(createSessionId);
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const nextIdRef = useRef(0);
+  const abortRef = useRef(null);
+  const bottomRef = useRef(null);
+
+  // Leaving the screen cancels a pending request
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, isLoading]);
+
+  const canSend = !isLoading && input.trim() !== '';
+
+  const handleSend = async () => {
+    if (!canSend) return;
+    const text = input;
+    const userMessage = { id: nextIdRef.current++, role: 'user', text };
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput('');
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const response = await sendChatMessage(sessionId, text, { signal: controller.signal });
+      const assistantMessage = { id: nextIdRef.current++, role: 'assistant', response };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      // A rejected message (empty, injection, server down) leaves the conversation; its text goes back for editing
+      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+      setInput(text);
+      setError(err instanceof ApiError ? err.message : 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    // Enter sends, Shift+Enter adds a line, Enter while composing characters is ignored
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      handleSend();
+    }
+  };
+
   return (
     <div className="flex-1 bg-[#f8fafc] flex overflow-hidden">
       <div className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0">
@@ -30,60 +138,46 @@ const DashboardDanisAI = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-           <div className="flex justify-end">
-             <div className="max-w-[80%]">
-               <div className="flex justify-end items-center gap-2 mb-1"><span className="text-xs font-bold text-slate-500">Siz (Müvekkil Modu)</span><div className="w-6 h-6 rounded-full bg-navy text-white text-[10px] font-bold flex justify-center items-center">K</div></div>
-               <div className="bg-navy text-white p-4 rounded-2xl rounded-tr-none text-sm leading-relaxed shadow-md">Ev sahibim kira sözleşmemin 1 yılı dolduğu için kiramı 12.000 TL'den 25.000 TL'ye çıkarmak istiyor. Kabul etmezsem haftaya çıkmamı söyledi. Ne yapmalıyım?</div>
+           {messages.length === 0 && !isLoading && (
+             <div className="h-full flex flex-col justify-center items-center text-center gap-3">
+               <div className="w-12 h-12 rounded-full bg-teal/10 text-teal flex justify-center items-center"><Scale size={22}/></div>
+               <p className="text-sm font-bold text-navy">Hukuki sorunuzu yazın</p>
+               <p className="text-xs text-slate-500 max-w-sm leading-relaxed">Danış AI, sorunuzu ilgili kanun maddeleriyle yanıtlasın.</p>
+               <p className="text-[10px] text-slate-400 flex items-center gap-1"><ShieldCheck size={12}/> {DISCLAIMER}</p>
              </div>
-           </div>
+           )}
 
-           <div className="flex justify-start">
-             <div className="max-w-[90%]">
-               <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 rounded-full bg-teal flex justify-center items-center text-white"><Scale size={16}/></div><span className="text-xs font-bold text-navy">Danış AI Hukuk Mütalaası</span><span className="text-[10px] text-slate-400">• Motor v4.2</span><span className="text-[10px] font-bold text-teal bg-teal/10 px-2 py-0.5 rounded ml-2">Kesin Hukuki Koruma</span></div>
-               <div className="bg-white border border-slate-200 p-5 rounded-2xl rounded-tl-none shadow-sm space-y-5">
-                  <div>
-                    <h4 className="text-sm font-bold text-navy mb-2 flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-navy text-white text-[10px] flex justify-center items-center">1</div> Hukuki Durum Tespiti & Tahliye Geçersizliği</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed pl-7"><span className="font-bold text-navy">TBK m. 347</span> gereğince, konut ve çatılı işyeri kira sözleşmelerinde sözleşme süresinin (1 yılın) dolması gerekçesiyle <span className="font-bold">kiraya verenin tek taraflı fesih ve tahliye hakkı bulunmamaktadır.</span> Ev sahibinizin <i>"haftaya evi boşaltın"</i> ihtarı kanunen hükümsüzdür.</p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-navy mb-2 flex items-center gap-2"><div className="w-5 h-5 rounded-full bg-navy text-white text-[10px] flex justify-center items-center">2</div> Kira Artış Oranı Tavanı</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed pl-7 mb-3"><span className="font-bold text-navy">TBK m. 344/1</span> hükmünce yenilenen kira dönemlerinde uygulanabilecek azami zam oranı, <span className="font-bold">TÜİK tarafından açıklanan son 12 aylık TÜFE ortalamasıdır.</span></p>
-                    <div className="ml-7 bg-slate-50 border border-slate-100 rounded-xl p-4 flex justify-between items-center">
-                      <div><p className="text-[10px] font-bold text-slate-500 mb-1">Mevcut Kira Bedeli</p><p className="text-lg font-bold text-navy">12.000 ₺</p></div>
-                      <div><p className="text-[10px] font-bold text-teal mb-1">Yasal Tavan Tahmini (%62,5)</p><p className="text-lg font-bold text-teal">~19.501 ₺</p></div>
-                      <div className="text-right"><p className="text-[10px] font-bold text-red-500 mb-1">Ev Sahibinin Talebi</p><p className="text-lg font-bold text-red-500 line-through">25.000 ₺</p></div>
-                    </div>
-                  </div>
-                  <div className="pl-7">
-                    <p className="text-[10px] font-bold text-slate-400 tracking-widest mb-2">DAYANAK KANUN MADDELERİ</p>
-                    <div className="flex gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-teal bg-teal/5 border border-teal/10 px-2 py-1.5 rounded-lg flex items-center gap-1"><Scale size={12}/> TBK Madde 344</span>
-                      <span className="text-xs font-bold text-teal bg-teal/5 border border-teal/10 px-2 py-1.5 rounded-lg flex items-center gap-1"><Scale size={12}/> TBK Madde 347</span>
-                    </div>
-                  </div>
-                  <div className="pl-7 border-t border-slate-100 pt-4">
-                    <p className="text-[10px] font-bold text-slate-400 tracking-widest mb-3">TAVSİYE EDİLEN SOMUT HUKUKİ ADIMLAR:</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl"><h5 className="text-xs font-bold text-navy mb-1 flex items-center gap-1"><Mail size={14} className="text-blue-600"/> 1. İtiraz İhtarnamesi Keşide Edin</h5><p className="text-[11px] text-slate-600 leading-relaxed">Fahiş kira artışını kabul etmediğinizi noter kanalıyla veya yazılı bildirin.</p></div>
-                      <div className="bg-teal/5 border border-teal/10 p-4 rounded-xl"><h5 className="text-xs font-bold text-navy mb-1 flex items-center gap-1"><Landmark size={14} className="text-teal"/> 2. Yasal Tutarı Bankadan Ödeyin</h5><p className="text-[11px] text-slate-600 leading-relaxed">TÜFE oranlı kirayı sözleşmedeki IBAN'a '2025 Kira Bedeli' yazarak yatırın.</p></div>
-                    </div>
-                  </div>
+           {messages.map((message) =>
+             message.role === 'user'
+               ? <UserBubble key={message.id} text={message.text} />
+               : <AssistantBubble key={message.id} response={message.response} />
+           )}
+
+           {isLoading && (
+             <div className="flex justify-start" aria-live="polite">
+               <div className="max-w-[90%]">
+                 <AssistantHeader />
+                 <div className="bg-white border border-slate-200 p-5 rounded-2xl rounded-tl-none shadow-sm text-sm text-slate-500 animate-pulse">Danış AI analiz ediyor...</div>
                </div>
              </div>
-           </div>
+           )}
+           <div ref={bottomRef} />
         </div>
 
         <div className="p-6 bg-white border-t border-slate-200 shrink-0">
+          {error && (
+            <div role="alert" className="max-w-4xl mx-auto mb-10 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2"><AlertCircle size={14} className="shrink-0"/> {error}</div>
+          )}
           <div className="max-w-4xl mx-auto relative">
              <div className="absolute -top-8 left-4 text-[10px] font-bold text-teal bg-teal/10 px-2 py-1 rounded-t-lg flex items-center gap-1"><Lock size={12}/> Gizlilik Kalkanı Açık</div>
              <div className="border border-slate-200 rounded-2xl rounded-tl-none bg-slate-50 p-2 flex flex-col focus-within:border-teal focus-within:bg-white transition-colors shadow-sm">
-                <textarea rows="2" placeholder="Örn: Ev sahibim sözleşmeyi elden yenilemek istiyor veya tahliye taahhüdü imzalatmak istiyor, ne yapmalıyım?..." className="w-full bg-transparent resize-none outline-none p-2 text-sm text-navy placeholder:text-slate-400"></textarea>
+                <textarea rows="2" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={handleKeyDown} maxLength={MAX_MESSAGE_LENGTH} aria-label="Hukuki sorunuz" placeholder="Örn: Ev sahibim sözleşmeyi elden yenilemek istiyor veya tahliye taahhüdü imzalatmak istiyor, ne yapmalıyım?..." className="w-full bg-transparent resize-none outline-none p-2 text-sm text-navy placeholder:text-slate-400"></textarea>
                 <div className="flex justify-between items-center mt-2">
                    <div className="flex gap-2">
                      <button className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-slate-100"><Paperclip size={14}/> Belge / PDF Ekle</button>
                      <button className="text-xs font-bold text-slate-500 bg-white border border-slate-200 w-8 h-8 rounded-lg flex justify-center items-center hover:bg-slate-100"><Mic size={14}/></button>
                    </div>
-                   <button className="bg-teal hover:bg-teal/90 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm">Hukuki Analiz İste <Send size={14}/></button>
+                   <button type="button" onClick={handleSend} disabled={!canSend} className="bg-teal hover:bg-teal/90 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">{isLoading ? 'Analiz ediliyor...' : 'Hukuki Analiz İste'} <Send size={14}/></button>
                 </div>
              </div>
           </div>
