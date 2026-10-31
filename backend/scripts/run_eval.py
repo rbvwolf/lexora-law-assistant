@@ -169,14 +169,20 @@ def evaluate_retrieval_scenario(
 
 
 async def evaluate_llm_intent(scenario: Dict[str, Any]) -> Tuple[bool, str]:
-    """Evaluate intent classification using llm_service."""
+    """Evaluate intent classification using llm_service.
+
+    Note: Uses the internal _classify_intent method directly because it returns
+    a plain intent string (Literal), which is exactly what the eval harness needs.
+    The public process_chat_message entry point runs the full pipeline
+    (RAG + answer generation) which is not needed here.
+    """
     from app.services.llm_service import llm_service
 
     query = scenario.get("query", "")
     expected_intent = scenario.get("expected_intent")
 
-    res = await llm_service.classify_intent(query)
-    predicted_intent = res.intent
+    # _classify_intent returns a plain str (Literal), not a Pydantic model.
+    predicted_intent: str = await llm_service._classify_intent(query)  # noqa: SLF001
     match = predicted_intent == expected_intent
     return match, predicted_intent
 
