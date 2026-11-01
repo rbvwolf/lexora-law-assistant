@@ -22,7 +22,10 @@ class LegalThesaurus:
         (re.compile(r"\bann(em|eme|emi|emin|emle)?\b", re.IGNORECASE), "üstsoyu"),
         (re.compile(r"\bbab(am|ama|amı|amın|amla)?\b", re.IGNORECASE), "üstsoyu"),
         (re.compile(r"\btorun(um|uma|umu|unun|umun)?\b", re.IGNORECASE), "altsoyu"),
-        (re.compile(r"\bkira artı(ş|şı|şları)\b", re.IGNORECASE), "kira bedelinin belirlenmesi artış oranı"),
+        # Rental Law: Rent increase / limitation gaps (TBK 344)
+        (re.compile(r"\bkira\w*\s+([^.!?]*\s+)?(art[ıi]r\w*|zam\w*|artı(ş|şı|şları))\b", re.IGNORECASE), "kira bedelinin belirlenmesi artış oranı tüketici fiyat endeksi tüfe"),
+        (re.compile(r"\bkiray[ıi]\s+([^.!?]*\s+)?art[ıi]r\w*\b", re.IGNORECASE), "kira bedelinin belirlenmesi artış oranı tüketici fiyat endeksi tüfe"),
+        (re.compile(r"(%|\byüzde\s*)\s*\d+\s*(zam|art[ıi]r|artış)", re.IGNORECASE), "kira bedelinin belirlenmesi artış oranı tüketici fiyat endeksi tüfe"),
         # Labor Law terminology gaps
         (re.compile(r"\bmaaş\w*\b", re.IGNORECASE), "ücret"),
         (re.compile(r"\bfazla mesai\w*\b", re.IGNORECASE), "fazla çalışma ücreti"),
