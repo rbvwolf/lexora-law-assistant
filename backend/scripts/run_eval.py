@@ -87,6 +87,8 @@ class EvalReport:
     latency_p95_ms: float
     latency_max_ms: float
     domain_breakdown: Dict[str, Dict[str, Any]]
+    mentor_verified_count: int = 0
+    mentor_verification_rate_pct: float = 0.0
     intent_accuracy: Optional[float] = None
     results: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -302,6 +304,9 @@ def run_evaluation(
 
     intent_acc = (intent_matches / intent_total * 100.0) if intent_total > 0 else None
 
+    mentor_verified_count = sum(1 for s in scenarios if s.get("mentor_verified", False))
+    mentor_verification_rate = (mentor_verified_count / total_scenarios * 100.0) if total_scenarios > 0 else 0.0
+
     # Format domain breakdown
     domain_dict: Dict[str, Dict[str, Any]] = {}
     for d_name, d_stat in domain_map.items():
@@ -327,6 +332,8 @@ def run_evaluation(
         latency_p95_ms=round(p95_lat, 2),
         latency_max_ms=round(max_lat, 2),
         domain_breakdown=domain_dict,
+        mentor_verified_count=mentor_verified_count,
+        mentor_verification_rate_pct=round(mentor_verification_rate, 1),
         intent_accuracy=round(intent_acc, 2) if intent_acc is not None else None,
         results=[asdict(r) for r in results],
     )
@@ -340,6 +347,7 @@ def run_evaluation(
         print(f" Hit@1 (First rank accuracy)     : {report.hit_at_1}% ({total_hits_at_1}/{retrieval_applicable_count})")
         print(f" Mean Reciprocal Rank (MRR)      : {report.mrr}")
         print(f" Retrieval Latency (avg / p95)   : {report.latency_avg_ms:.1f}ms / {report.latency_p95_ms:.1f}ms")
+        print(f" Legal Mentor Verification       : {report.mentor_verification_rate_pct}% ({report.mentor_verified_count}/{report.evaluated_scenarios} scenarios)")
         if report.intent_accuracy is not None:
             print(f" Intent Classification Accuracy  : {report.intent_accuracy}%")
         print("\nDomain Breakdown:")

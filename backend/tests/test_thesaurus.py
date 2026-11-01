@@ -52,6 +52,21 @@ def test_thesaurus_consumer_defective_goods():
     assert "ayıplı mal" in legal_thesaurus.expand_query("Sıfır aldığım bilgisayar arızalı çıktı.")
 
 
+def test_thesaurus_rent_increase_expansion():
+    """Verify colloquial rent increase queries expand with TBK-344 statutory terms (TÜFE, kira bedeli)."""
+    queries = [
+        "Ev sahibim kiramı %100 artırmak istiyor, yasal mı?",
+        "Kira artışı yasal sınırı neye göre belirlenir?",
+        "Kira zammı için tavan oran nedir?",
+        "Ev sahibi kiraya %80 zam yapabilir mi?",
+    ]
+    for q in queries:
+        expanded = legal_thesaurus.expand_query(q)
+        assert "tüketici fiyat endeksi tüfe" in expanded
+        assert "kira bedelinin belirlenmesi" in expanded
+        assert "TBK" not in expanded  # No hardcoded article IDs
+
+
 def test_thesaurus_does_not_duplicate_existing_terms():
     """Verify that if the query already explicitly mentions the statutory term, it is not duplicated."""
     query = "Kiracının güvence bedeli sınırı nedir?"
