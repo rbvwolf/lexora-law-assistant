@@ -554,3 +554,279 @@ class TestEdgeCases:
         assert "ayip_detayi" not in params
         assert params.get("urun_adi") == "Buzdolabı"
         assert "satin_alma_tutari" in missing
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 8. kira_artis_itiraz_ihtarname template sync (Faz 1)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestArtisIhtarnameFaz1:
+    """Faz 1 — _DOC_SYSTEM prompt, mock routing, and _doc_answer label for kira_artis_itiraz_ihtarname."""
+
+    # ── 8.1 _DOC_SYSTEM prompt contains the new template ──────────────────────
+
+    def test_doc_system_contains_new_template_id(self):
+        from app.services.llm_service import _DOC_SYSTEM
+        assert "kira_artis_itiraz_ihtarname" in _DOC_SYSTEM, (
+            "_DOC_SYSTEM must list the kira_artis_itiraz_ihtarname template"
+        )
+
+    def test_doc_system_contains_new_case_param_fields(self):
+        from app.services.llm_service import _DOC_SYSTEM
+        expected_fields = [
+            "kira_baslangic_tarihi",
+            "mevcut_kira_tutari",
+            "talep_edilen_kira_tutari",
+            "tufe_oran",
+            "noter_ili",
+        ]
+        for field in expected_fields:
+            assert field in _DOC_SYSTEM, (
+                f"_DOC_SYSTEM must include extracted_params field: {field}"
+            )
+
+    def test_doc_system_kvkk_prohibition_strengthened(self):
+        """KVKK section must explicitly name banned field categories."""
+        from app.services.llm_service import _DOC_SYSTEM
+        pii_markers = ["kiraci_ad_soyad", "kiraci_tc", "iban", "ad_soyad"]
+        for marker in pii_markers:
+            assert marker in _DOC_SYSTEM, (
+                f"_DOC_SYSTEM KVKK section must explicitly name banned field: {marker}"
+            )
+
+    # ── 8.2 Mock routing: artış/itiraz/zam/fahiş → kira_artis_itiraz_ihtarname ─
+
+    @pytest.mark.asyncio
+    async def test_mock_artis_ihtarname_routing(self, service, sample_citations):
+        """Query with 'artış itiraz ihtarnamesi' must route to kira_artis_itiraz_ihtarname."""
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            intent, answer, params, missing, template_id = await service.process_chat_message(
+                "Ev sahibim kira artışına itiraz ihtarnamesi göndermemi istedi, bana yardım et",
+                sample_citations,
+            )
+
+        assert intent == "document_generation"
+        assert template_id == "kira_artis_itiraz_ihtarname"
+
+    @pytest.mark.asyncio
+    async def test_mock_zam_keyword_routing(self, service, sample_citations):
+        """'zam' + doc action keyword must route to kira_artis_itiraz_ihtarname."""
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            intent, _answer, _params, _missing, template_id = await service.process_chat_message(
+                "Ev sahibim fahiş zam yapıyor, itiraz ihtarnamesi hazırla", sample_citations
+            )
+
+        assert intent == "document_generation"
+        assert template_id == "kira_artis_itiraz_ihtarname"
+
+    # ── 8.6 Edge cases: QA questions vs Document Requests ─────────────────────
+
+    @pytest.mark.asyncio
+    async def test_qa_rent_increase_question_not_routed_to_doc_gen(self, service, sample_citations):
+        """Legal questions containing 'artış' / 'zam' must NOT be classified as document_generation."""
+        questions = [
+            "Konut kiralarında yasal kira artış oranı nedir?",
+            "Ev sahibim kiramı %100 artırmak istiyor, yasal mı?",
+            "Ev sahibim %50 zam yapabilir mi?",
+            "Kira sözleşmesinde artış maddesi yoksa ne olur?",
+        ]
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            for q in questions:
+                intent, _answer, params, missing, template_id = await service.process_chat_message(
+                    q, sample_citations
+                )
+                assert intent == "question_answering", f"Query '{q}' was wrongly classified as {intent}"
+                assert template_id is None, f"Query '{q}' should not suggest a template"
+
+    # ── 8.7 Edge cases: Turkish capitalization (İ / I) ───────────────────────
+
+    @pytest.mark.asyncio
+    async def test_mock_artis_ihtarname_uppercase_turkish(self, service, sample_citations):
+        """Uppercase Turkish 'İ' and 'I' must normalize and route correctly."""
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            intent, _answer, _params, _missing, template_id = await service.process_chat_message(
+                "KİRA ARTIŞINA İTİRAZ İHTARNAMESİ HAZIRLA", sample_citations
+            )
+
+        assert intent == "document_generation"
+        assert template_id == "kira_artis_itiraz_ihtarname"
+
+    # ── 8.8 Edge cases: _doc_answer formatting ────────────────────────────────
+
+    def test_doc_answer_all_params_present_shows_completion_message(self, service):
+        """When missing_fields is empty, message states document is ready to be created."""
+        answer = service._doc_answer(
+            "kira_artis_itiraz_ihtarname",
+            {"mevcut_kira_tutari": 10000, "talep_edilen_kira_tutari": 20000},
+            [],  # no missing fields
+        )
+        assert "Tüm bilgiler tamamlandı; belge oluşturulabilir." in answer
+        assert "ihtiyacım var" not in answer
+
+    def test_doc_answer_empty_params_handled_cleanly(self, service):
+        """When extracted_params is empty, answer does not crash and lists missing fields."""
+        answer = service._doc_answer(
+            "kira_artis_itiraz_ihtarname",
+            {},
+            ["kira_baslangic_tarihi", "mevcut_kira_tutari"],
+        )
+        assert "Fahiş Kira Artışına İtiraz İhtarnamesi" in answer
+        assert "**kira_baslangic_tarihi**" in answer
+        assert "**mevcut_kira_tutari**" in answer
+        assert "Tespit edilen bilgiler" not in answer
+
+    def test_doc_answer_unknown_template_fallback(self, service):
+        """Unknown template ID falls back to raw template_id as label."""
+        answer = service._doc_answer("bilinmeyen_ozel_sablon", {}, [])
+        assert "**bilinmeyen_ozel_sablon** belgesi hazırlanıyor." in answer
+
+    # ── 8.9 Groq mode: kira_artis_itiraz_ihtarname structured extraction ─────
+
+    @pytest.mark.asyncio
+    async def test_groq_mode_artis_itiraz_extraction(self, service, sample_citations):
+        """Simulate Groq returning structured extraction for kira_artis_itiraz_ihtarname."""
+        REAL_KEY = "gsk_" + "x" * 52
+        intent_json = json.dumps({"intent": "document_generation"})
+        doc_json = json.dumps({
+            "suggested_template_id": "kira_artis_itiraz_ihtarname",
+            "extracted_params": {
+                "mevcut_kira_tutari": 12000,
+                "talep_edilen_kira_tutari": 25000,
+                "tufe_oran": 49.5,
+                "noter_ili": "Ankara",
+                "kira_baslangic_tarihi": "2023-06-01",
+            },
+            "missing_fields": [],
+        })
+
+        with (
+            patch("app.services.llm_service.settings") as ms,
+            patch("app.services.llm_service._get_groq_client") as mock_client_fn,
+        ):
+            ms.GROQ_API_KEY = REAL_KEY
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            mock_client = AsyncMock()
+            mock_client_fn.return_value = mock_client
+            mock_client.chat.completions.create.side_effect = [
+                _mock_groq_completion(intent_json),
+                _mock_groq_completion(doc_json),
+            ]
+
+            intent, answer, params, missing, template_id = await service.process_chat_message(
+                "Ev sahibim kiramı 12 binden 25 bine çıkarmak istiyor, itiraz ihtarnamesi oluştur",
+                sample_citations,
+            )
+
+        assert intent == "document_generation"
+        assert template_id == "kira_artis_itiraz_ihtarname"
+        assert params["mevcut_kira_tutari"] == 12000
+        assert params["talep_edilen_kira_tutari"] == 25000
+        assert params["tufe_oran"] == 49.5
+        assert params["noter_ili"] == "Ankara"
+        assert missing == []
+        assert "Fahiş Kira Artışına İtiraz İhtarnamesi" in answer
+        assert "Tüm bilgiler tamamlandı" in answer
+
+    @pytest.mark.asyncio
+    async def test_mock_fahis_keyword_routing(self, service, sample_citations):
+        """'fahiş' keyword must route to kira_artis_itiraz_ihtarname."""
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            intent, _answer, _params, _missing, template_id = await service.process_chat_message(
+                "Fahiş kira artışına karşı belge hazırla", sample_citations
+            )
+
+        assert intent == "document_generation"
+        assert template_id == "kira_artis_itiraz_ihtarname"
+
+    @pytest.mark.asyncio
+    async def test_temerrut_still_routes_to_temerrut_template(self, service, sample_citations):
+        """Plain 'ihtarname hazırla' (temerrüt context) must still route to kira_ihtarname_temerrut."""
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            intent, _answer, _params, _missing, template_id = await service.process_chat_message(
+                "Kiracım kira ödemedi, ihtarname hazırla", sample_citations
+            )
+
+        assert intent == "document_generation"
+        assert template_id == "kira_ihtarname_temerrut"
+
+    # ── 8.3 Mock params: no PII in missing_fields ─────────────────────────────
+
+    PII_SUBSTRINGS = ["tc", "iban", "ad_soyad", "adres", "kiraci", "kiraya_veren", "tasinmaz"]
+
+    @pytest.mark.asyncio
+    async def test_mock_artis_missing_fields_no_pii(self, service, sample_citations):
+        """_MOCK_ARTIS_DOC_PARAMS.missing_fields must not contain PII field names."""
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            _intent, _answer, _params, missing, _template_id = await service.process_chat_message(
+                "Kira artışına itiraz belgesi oluştur", sample_citations
+            )
+
+        for field in missing:
+            for pii in self.PII_SUBSTRINGS:
+                assert pii not in field.lower(), (
+                    f"PII substring '{pii}' found in missing_field: '{field}'"
+                )
+
+    # ── 8.4 _doc_answer label ─────────────────────────────────────────────────
+
+    def test_doc_answer_artis_label(self, service):
+        """_doc_answer must return the Turkish label for kira_artis_itiraz_ihtarname."""
+        answer = service._doc_answer(
+            "kira_artis_itiraz_ihtarname",
+            {"mevcut_kira_tutari": 10000, "talep_edilen_kira_tutari": 20000},
+            ["kira_baslangic_tarihi"],
+        )
+        assert "Fahiş Kira Artışına İtiraz İhtarnamesi" in answer
+
+    def test_doc_answer_artis_label_in_bold(self, service):
+        """The label must appear in bold markdown."""
+        answer = service._doc_answer(
+            "kira_artis_itiraz_ihtarname",
+            {},
+            [],
+        )
+        assert "**Fahiş Kira Artışına İtiraz İhtarnamesi**" in answer
+
+    # ── 8.5 _MOCK_ARTIS_DOC_PARAMS structural checks ─────────────────────────
+
+    def test_artis_mock_params_contain_expected_keys(self):
+        from app.services.llm_service import _MOCK_ARTIS_DOC_PARAMS
+        expected_keys = {"mevcut_kira_tutari", "talep_edilen_kira_tutari", "tufe_oran", "noter_ili"}
+        actual_keys = set(_MOCK_ARTIS_DOC_PARAMS["extracted_params"].keys())
+        assert expected_keys.issubset(actual_keys), (
+            f"Missing keys in _MOCK_ARTIS_DOC_PARAMS: {expected_keys - actual_keys}"
+        )
+
+    def test_artis_mock_params_no_pii_keys(self):
+        from app.services.llm_service import _MOCK_ARTIS_DOC_PARAMS
+        pii_substrings = ["tc", "iban", "ad_soyad", "adres", "kiraci", "kiraya_veren", "tasinmaz"]
+        for key in _MOCK_ARTIS_DOC_PARAMS["extracted_params"]:
+            for pii in pii_substrings:
+                assert pii not in key.lower(), (
+                    f"PII key '{key}' found in _MOCK_ARTIS_DOC_PARAMS.extracted_params"
+                )
+        for field in _MOCK_ARTIS_DOC_PARAMS["missing_fields"]:
+            for pii in pii_substrings:
+                assert pii not in field.lower(), (
+                    f"PII field '{field}' found in _MOCK_ARTIS_DOC_PARAMS.missing_fields"
+                )
+
+    def test_artis_mock_tufe_oran_is_number(self):
+        from app.services.llm_service import _MOCK_ARTIS_DOC_PARAMS
+        tufe = _MOCK_ARTIS_DOC_PARAMS["extracted_params"]["tufe_oran"]
+        assert isinstance(tufe, (int, float)), f"tufe_oran must be a number, got {type(tufe)}"
+        assert 0 < tufe < 200, f"tufe_oran value {tufe} seems out of realistic range"
