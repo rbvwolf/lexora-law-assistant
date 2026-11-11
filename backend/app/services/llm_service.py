@@ -146,12 +146,15 @@ Sen Türk hukuku alanında uzman bir AI asistanısın.
 Kullanıcının mesajından hukuki belge oluşturmak için gerekli OLAY PARAMETRELERİNİ çıkar.
 
 ÖNEMLİ KVKK KURALLARI:
-- TC kimlik numarası, IBAN, açık adres, telefon gibi KİŞİSEL VERİLERİ (PII) ASLA isteme.
-- PII veriler ayrı bir formla toplanacaktır; sen sadece olayı anlatan parametreleri çıkar.
+- KİŞİSEL VERİLERİ (PII) ASLA isteme ve missing_fields içine ASLA koyma.
+- Yasaklı alan adları: kiraci_ad_soyad, kiraci_tc, kiraci_adres, kiraya_veren_ad_soyad,
+  kiraya_veren_tc, kiraya_veren_adres, tasinmaz_adresi, tc, tc_kimlik, iban, ad_soyad, adres, telefon.
+- Bu veriler ayrı bir güvenli form aracılığıyla toplanır; sen sadece olayı anlatan parametreleri çıkar.
 
 Desteklenen şablon kimlikleri:
-- "kira_ihtarname_temerrut"     : Kiracı ödeme yapmadığında ev sahibi adına temerrüt ihtarnamesi
+- "kira_ihtarname_temerrut"      : Kiracı ödeme yapmadığında ev sahibi adına temerrüt ihtarnamesi
 - "tuketici_ayipli_mal_ihtarname": Ayıplı mal için tüketici şikayet/başvuru belgesi
+- "kira_artis_itiraz_ihtarname"  : Kiraya verenin TBK m. 344'ü aşan fahiş kira artış talebine kiracının itirazı
 
 Yanıtını SADECE şu JSON formatında ver:
 {
@@ -164,13 +167,19 @@ Yanıtını SADECE şu JSON formatında ver:
     "urun_adi": "<string|null>",
     "satin_alma_tutari": <number|null>,
     "ayip_detayi": "<string|null>",
-    "olay_tarihi": "<YYYY-MM-DD|null>"
+    "olay_tarihi": "<YYYY-MM-DD|null>",
+    "kira_baslangic_tarihi": "<YYYY-MM-DD|null>",
+    "mevcut_kira_tutari": <number|null>,
+    "talep_edilen_kira_tutari": <number|null>,
+    "tufe_oran": <number|null>,
+    "noter_ili": "<string|null>"
   },
   "missing_fields": ["<alan_adı>", ...]
 }
 
 missing_fields: Belgeyi oluşturmak için kullanıcıdan hâlâ öğrenilmesi gereken OLAY alanlarının listesi.
 Eğer tüm alanlar mevcutsa boş liste döndür.
+HATIRLATMA: missing_fields içine ASLA kişisel veri (tc, iban, ad_soyad, adres vb.) alanı koyma.
 """
 
 # ---------------------------------------------------------------------------
@@ -193,6 +202,17 @@ _MOCK_DOC_PARAMS: Dict[str, Any] = {
         "odeme_suresi_gun": 30,
     },
     "missing_fields": ["banka_hesap_bilgisi", "kiralanan_tasinmaz_adresi"],
+}
+
+_MOCK_ARTIS_DOC_PARAMS: Dict[str, Any] = {
+    "suggested_template_id": "kira_artis_itiraz_ihtarname",
+    "extracted_params": {
+        "mevcut_kira_tutari": 15000,
+        "talep_edilen_kira_tutari": 30000,
+        "tufe_oran": 48.0,
+        "noter_ili": "İstanbul",
+    },
+    "missing_fields": ["kira_baslangic_tarihi"],
 }
 
 
@@ -363,6 +383,7 @@ class LLMService:
         template_labels = {
             "kira_ihtarname_temerrut": "Kira Temerrüdü İhtarnamesi",
             "tuketici_ayipli_mal_ihtarname": "Ayıplı Mal Tüketici Başvurusu",
+            "kira_artis_itiraz_ihtarname": "Fahiş Kira Artışına İtiraz İhtarnamesi",
         }
         label = template_labels.get(template_id, template_id)
 
@@ -405,19 +426,28 @@ class LLMService:
         Optional[str],
     ]:
         """Return deterministic mock responses when no real Groq key is present."""
-        lowered = message.lower()
-        doc_keywords = ["ihtarname", "dilekçe", "tahliye", "başvuru", "hazırla", "yaz", "oluştur", "fesih"]
+        # Turkish uppercase normalization: İ->i, I->ı
+        lowered = message.replace("İ", "i").replace("I", "ı").lower()
+        doc_keywords = [
+            "ihtarname", "dilekçe", "tahliye", "başvuru", "hazırla", "yaz", "oluştur", "fesih", "belge",
+        ]
+        artis_keywords = ["artış", "itiraz", "zam", "fahiş", "tüfe"]
         if any(kw in lowered for kw in doc_keywords):
+            # Route artış/itiraz/zam/fahiş queries to the new template mock
+            if any(kw in lowered for kw in artis_keywords):
+                mock = _MOCK_ARTIS_DOC_PARAMS
+            else:
+                mock = _MOCK_DOC_PARAMS
             return (
                 "document_generation",
                 "⚠️ [MOCK MOD] " + self._doc_answer(
-                    _MOCK_DOC_PARAMS["suggested_template_id"],
-                    _MOCK_DOC_PARAMS["extracted_params"],
-                    _MOCK_DOC_PARAMS["missing_fields"],
+                    mock["suggested_template_id"],
+                    mock["extracted_params"],
+                    mock["missing_fields"],
                 ),
-                _MOCK_DOC_PARAMS["extracted_params"],
-                _MOCK_DOC_PARAMS["missing_fields"],
-                _MOCK_DOC_PARAMS["suggested_template_id"],
+                mock["extracted_params"],
+                mock["missing_fields"],
+                mock["suggested_template_id"],
             )
         return "question_answering", _MOCK_QA_ANSWER, {}, [], None
 
