@@ -133,12 +133,26 @@ intent değerleri:
 - "out_of_scope"        : Hukuk dışı veya kapsam dışı bir talep.
 """
 
+NO_RELEVANT_LAW_ANSWER: str = (
+    "Veritabanımızdaki mevzuat kapsamında bu sorunun doğrudan cevabı bulunamadı; "
+    "lütfen bir hukuk uzmanına danışınız."
+)
+
 _QA_SYSTEM = """\
 Sen Türk hukuku alanında uzman bir AI asistanısın.
-SADECE aşağıda sana verilen kanun maddelerine dayanarak cevap ver.
-Verilmeyen maddelerden, genel bilginden veya tahmininden kesinlikle yararlanma (halüsinasyon yapma).
-Cevabında her zaman madde numarasına açıkça atıf yap (örn. "TBK Madde 315 uyarınca").
-Cevabını Türkçe yaz. Kısa, net ve anlaşılır ol.
+Görevin, kullanıcının sorusuna SADECE aşağıda sana sağlanan kanun maddeleri bağlamında kalarak cevap vermektir.
+
+KESİN KURALLAR:
+1. SADAKAT (FAITHFULNESS): Yalnızca verilen kanun metinlerindeki bilgilere dayan. Kendi önceden eğitilmiş genel bilginden, varsayımlardan veya dış kaynaklardan kesinlikle hukuk kuralı veya bilgi uydurma (halüsinasyon yapma).
+2. STANDART MADDE ATIFI: Cevabında dayandığın kanun ve madde numarasını HER ZAMAN açık ve standart bir biçimde zikret.
+   - Standart format: "[Kanun Adı] Madde [No] uyarınca..." (Örn: "Türk Borçlar Kanunu Madde 344 uyarınca...", "Tüketicinin Korunması Hakkında Kanun Madde 11 uyarınca...", "İş Kanunu Madde 17 uyarınca...").
+   - Kanun ve madde numarası belirtmeden soyut bir hukuki kural veya iddia öne sürme.
+   - Yalnızca sana sunulan maddelere atıf yap; bağlamda yer almayan maddelere atıfta bulunma.
+3. BİLGİ YETERSİZLİĞİ VE HALÜSİNASYON BARİYERİ:
+   - Eğer kullanıcının sorusunun doğrudan ve kesin cevabı sağlanan kanun maddelerinde YOKSA veya maddeler bu konuyu açıklamaya YETMİYORSA, kesinlikle tahmin yürütme ya da genel ilkelerden cevap uydurma.
+   - Bu durumda DOĞRUDAN ve YALNIZCA şu standart yanıtı ver:
+     "Veritabanımızdaki mevzuat kapsamında bu sorunun doğrudan cevabı bulunamadı; lütfen bir hukuk uzmanına danışınız."
+4. DİL VE ÜSLUP: Cevabını Türkçe, profesyonel, net, tarafsız ve anlaşılır yaz. Gereksiz dolambaçlı ifadelerden kaçın.
 """
 
 _DOC_SYSTEM = """\
@@ -254,7 +268,7 @@ class LLMService:
             Tuple of (intent, answer, extracted_params, missing_fields, suggested_template_id)
         """
         if _is_mock_key(settings.GROQ_API_KEY):
-            return self._mock_response(cleaned_message)
+            return self._mock_response(cleaned_message, retrieved_citations)
 
         intent = await self._classify_intent(cleaned_message)
 
@@ -314,17 +328,24 @@ class LLMService:
         self, message: str, citations: List[Citation]
     ) -> str:
         """Generate a strictly RAG-grounded Turkish legal answer."""
-        if not citations:
-            return (
-                "Sorunuzla ilgili kanun veritabanımızda yeterli makale bulunamadı. "
-                "Lütfen sorunuzu daha ayrıntılı ifade edin ya da farklı bir konu deneyin."
-            )
+        valid_citations = [
+            c for c in citations
+            if c.text_snippet and c.text_snippet.strip()
+        ]
+        if not valid_citations:
+            return NO_RELEVANT_LAW_ANSWER
 
-        # Build context block from retrieved articles
+        # Build context block from retrieved articles (deduplicating identical article excerpts)
+        seen_snippets = set()
         context_parts: List[str] = []
-        for c in citations:
+        for c in valid_citations:
+            snippet_cleaned = c.text_snippet.strip()
+            key = (c.article_id, snippet_cleaned)
+            if key in seen_snippets:
+                continue
+            seen_snippets.add(key)
             context_parts.append(
-                f"[{c.article_id}] {c.law_name}\n{c.text_snippet}"
+                f"[{c.article_id}] {c.law_name}:\n{snippet_cleaned}"
             )
         context_block = "\n\n---\n\n".join(context_parts)
 
@@ -334,12 +355,13 @@ class LLMService:
                 "role": "user",
                 "content": (
                     f"Kanun maddeleri:\n{context_block}\n\n"
-                    f"Kullanıcı sorusu: {message}"
+                    f"Kullanıcı sorusu: {message.strip()}"
                 ),
             },
         ]
         answer = await _call_groq(messages, temperature=0.1)
-        return answer.strip()
+        stripped = answer.strip()
+        return stripped if stripped else NO_RELEVANT_LAW_ANSWER
 
     # ------------------------------------------------------------------
     # Step 2b: Document parameter extraction
@@ -417,7 +439,9 @@ class LLMService:
     # ------------------------------------------------------------------
 
     def _mock_response(
-        self, message: str
+        self,
+        message: str,
+        citations: Optional[List[Citation]] = None,
     ) -> Tuple[
         Literal["question_answering", "document_generation", "out_of_scope"],
         str,
@@ -449,6 +473,9 @@ class LLMService:
                 mock["missing_fields"],
                 mock["suggested_template_id"],
             )
+        if citations is not None and not any(c.text_snippet and c.text_snippet.strip() for c in citations):
+            return "question_answering", f"⚠️ [MOCK MOD] {NO_RELEVANT_LAW_ANSWER}", {}, [], None
+
         return "question_answering", _MOCK_QA_ANSWER, {}, [], None
 
 

@@ -830,3 +830,172 @@ class TestArtisIhtarnameFaz1:
         tufe = _MOCK_ARTIS_DOC_PARAMS["extracted_params"]["tufe_oran"]
         assert isinstance(tufe, (int, float)), f"tufe_oran must be a number, got {type(tufe)}"
         assert 0 < tufe < 200, f"tufe_oran value {tufe} seems out of realistic range"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 9. RAG Q&A Quality & Hallucination Guardrails (Faz 2)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestQAQualityAndHallucinationGuardrailsFaz2:
+    """Faz 2 — _QA_SYSTEM prompt, statutory citation standards, hallucination barrier, and disclaimer."""
+
+    def test_qa_system_prompt_contains_mandatory_citation_standard(self):
+        """_QA_SYSTEM must require standardized statutory citation format."""
+        from app.services.llm_service import _QA_SYSTEM
+        assert "STANDART MADDE ATIFI" in _QA_SYSTEM
+        assert "Türk Borçlar Kanunu Madde 344 uyarınca" in _QA_SYSTEM
+        assert "Tüketicinin Korunması Hakkında Kanun Madde 11 uyarınca" in _QA_SYSTEM
+        assert "İş Kanunu Madde 17 uyarınca" in _QA_SYSTEM
+
+    def test_qa_system_prompt_contains_hallucination_barrier(self):
+        """_QA_SYSTEM must explicitly instruct the model to return the standard fallback when context is insufficient."""
+        from app.services.llm_service import _QA_SYSTEM, NO_RELEVANT_LAW_ANSWER
+        assert "HALÜSİNASYON BARİYERİ" in _QA_SYSTEM
+        assert NO_RELEVANT_LAW_ANSWER in _QA_SYSTEM
+
+    @pytest.mark.asyncio
+    async def test_qa_answer_empty_citations_returns_canonical_fallback(self, service):
+        """When citations list is empty, _answer_legal_question returns canonical fallback without calling Groq."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+        answer = await service._answer_legal_question("Kira artış oranı ne kadar?", [])
+        assert answer == NO_RELEVANT_LAW_ANSWER
+
+    @pytest.mark.asyncio
+    async def test_qa_answer_blank_citations_returns_canonical_fallback(self, service):
+        """When all retrieved citations have blank snippets, returns canonical fallback."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+        blank_citations = [
+            Citation(article_id="TBK-X", law_name="Test", text_snippet="   "),
+            Citation(article_id="TBK-Y", law_name="Test", text_snippet=""),
+        ]
+        answer = await service._answer_legal_question("Soru?", blank_citations)
+        assert answer == NO_RELEVANT_LAW_ANSWER
+
+    @pytest.mark.asyncio
+    async def test_mock_response_empty_citations_returns_fallback(self, service):
+        """In mock mode, when citations is empty, returns fallback message."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            intent, answer, params, missing, template_id = await service.process_chat_message(
+                "Mevzuatta olmayan bir soru?", []
+            )
+        assert intent == "question_answering"
+        assert NO_RELEVANT_LAW_ANSWER in answer
+
+    def test_mock_qa_answer_follows_standard_citation_format(self):
+        """_MOCK_QA_ANSWER must follow the standardized statutory citation format."""
+        from app.services.llm_service import _MOCK_QA_ANSWER
+        assert "Türk Borçlar Kanunu Madde 344 uyarınca" in _MOCK_QA_ANSWER
+
+    @pytest.mark.asyncio
+    async def test_groq_qa_hallucination_refusal_when_unsupported(self, service, sample_citations):
+        """When Groq returns the canonical refusal string for unsupported queries, service preserves it."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+        intent_json = json.dumps({"intent": "question_answering"})
+
+        with (
+            patch("app.services.llm_service.settings") as ms,
+            patch("app.services.llm_service._get_groq_client") as mock_client_fn,
+        ):
+            ms.GROQ_API_KEY = REAL_KEY
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            mock_client = AsyncMock()
+            mock_client_fn.return_value = mock_client
+            mock_client.chat.completions.create.side_effect = [
+                _mock_groq_completion(intent_json),
+                _mock_groq_completion(NO_RELEVANT_LAW_ANSWER),
+            ]
+
+            intent, answer, params, missing, template_id = await service.process_chat_message(
+                "Ceza kanununda hırsızlık cezası nedir?",
+                sample_citations,
+            )
+
+        assert intent == "question_answering"
+        assert answer == NO_RELEVANT_LAW_ANSWER
+
+    @pytest.mark.asyncio
+    async def test_legal_disclaimer_present_in_chat_response_contracts(self, service, sample_citations):
+        """Verify that every ChatResponse contract carries LEGAL_DISCLAIMER per AGENTS.md §5."""
+        from app.schemas.chat import ChatResponse
+        from app.schemas.common import LEGAL_DISCLAIMER
+
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+
+            # 1. Q&A intent
+            intent, answer, params, missing, template_id = await service.process_chat_message(
+                "Kira artış oranı?", sample_citations
+            )
+            resp_qa = ChatResponse(
+                intent=intent, answer=answer, citations=sample_citations,
+                extracted_params=params, missing_fields=missing, suggested_template_id=template_id,
+            )
+            assert resp_qa.disclaimer == LEGAL_DISCLAIMER
+            assert "avukatlık hizmeti vermez" in resp_qa.disclaimer
+
+            # 2. Document generation intent
+            intent, answer, params, missing, template_id = await service.process_chat_message(
+                "İhtarname hazırla", sample_citations
+            )
+            resp_doc = ChatResponse(
+                intent=intent, answer=answer, citations=[],
+                extracted_params=params, missing_fields=missing, suggested_template_id=template_id,
+            )
+            assert resp_doc.disclaimer == LEGAL_DISCLAIMER
+
+            # 3. Out of scope intent
+            resp_oos = ChatResponse(
+                intent="out_of_scope", answer="Kapsam dışı", citations=[],
+                extracted_params={}, missing_fields=[], suggested_template_id=None,
+            )
+            assert resp_oos.disclaimer == LEGAL_DISCLAIMER
+
+    @pytest.mark.asyncio
+    async def test_qa_answer_deduplicates_identical_citation_snippets(self, service):
+        """When citations contain duplicate snippets, context block deduplicates them."""
+        from app.services.llm_service import _QA_SYSTEM
+        c1 = Citation(article_id="TBK-344", law_name="TBK", text_snippet="Kira artış sınırı TÜFE.")
+        c2 = Citation(article_id="TBK-344", law_name="TBK", text_snippet="Kira artış sınırı TÜFE.")
+
+        captured_messages = []
+
+        async def fake_call_groq(messages, **kwargs):
+            nonlocal captured_messages
+            captured_messages = messages
+            return "Türk Borçlar Kanunu Madde 344 uyarınca cevap."
+
+        with patch("app.services.llm_service._call_groq", side_effect=fake_call_groq):
+            answer = await service._answer_legal_question("Artış?", [c1, c2])
+
+        user_content = captured_messages[1]["content"]
+        assert user_content.count("[TBK-344]") == 1, "Duplicate citation was not deduplicated!"
+        assert "Türk Borçlar Kanunu Madde 344 uyarınca" in answer
+
+    @pytest.mark.asyncio
+    async def test_qa_answer_fallback_on_empty_groq_response(self, service, sample_citations):
+        """If Groq returns whitespace or empty string, fallback to NO_RELEVANT_LAW_ANSWER."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+
+        with patch("app.services.llm_service._call_groq", return_value="   "):
+            answer = await service._answer_legal_question("Soru?", sample_citations)
+
+        assert answer == NO_RELEVANT_LAW_ANSWER
+
+    @pytest.mark.asyncio
+    async def test_mock_response_blank_citations_returns_fallback(self, service):
+        """In mock mode, when citations are present but blank, returns fallback message."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+        blank_citations = [Citation(article_id="T1", law_name="L1", text_snippet="   ")]
+
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+            intent, answer, *_ = await service.process_chat_message(
+                "Soru?", blank_citations
+            )
+        assert intent == "question_answering"
+        assert NO_RELEVANT_LAW_ANSWER in answer
