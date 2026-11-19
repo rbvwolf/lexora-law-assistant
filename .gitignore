@@ -35,7 +35,9 @@ temp/
 tmp/
 generated_docs/
 backend/generated_docs/
-reports/
+reports/*
+!reports/eval_results.json
+!reports/*.md
 backend/reports/
 
 .pytest_cache/
