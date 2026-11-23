@@ -83,9 +83,10 @@ async def _call_groq(
     *,
     response_format: Optional[Dict[str, str]] = None,
     temperature: float = 0.2,
+    model_name: Optional[str] = None,
 ) -> str:
     """Call Groq API with prompt-hash caching.  Returns the assistant's text."""
-    model = settings.GROQ_MODEL_NAME
+    model = model_name or settings.GROQ_MODEL_NAME
     key = _cache_key(model, messages)
 
     if key in _response_cache:

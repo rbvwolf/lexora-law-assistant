@@ -52,6 +52,10 @@ class ScenarioRetrievalResult:
     intent_match: Optional[bool] = None
     predicted_intent: Optional[str] = None
     error: Optional[str] = None
+    faithfulness: Optional[float] = None
+    answer_relevancy: Optional[float] = None
+    citation_accuracy: Optional[bool] = None
+    judge_reasoning: Optional[str] = None
 
 
 @dataclass
@@ -90,6 +94,9 @@ class EvalReport:
     mentor_verified_count: int = 0
     mentor_verification_rate_pct: float = 0.0
     intent_accuracy: Optional[float] = None
+    avg_faithfulness: Optional[float] = None
+    avg_answer_relevancy: Optional[float] = None
+    citation_accuracy_pct: Optional[float] = None
     results: List[Dict[str, Any]] = field(default_factory=list)
 
 
@@ -112,6 +119,9 @@ def evaluate_retrieval_scenario(
     scenario: Dict[str, Any],
     top_k: int = 5,
     domain_filter: Optional[str] = None,
+    preloaded_citations: Optional[List[Citation]] = None,
+    retrieval_error: Optional[str] = None,
+    retrieval_latency_ms: Optional[float] = None,
 ) -> ScenarioRetrievalResult:
     """Evaluate a single scenario for statutory retrieval metrics."""
     scenario_id = scenario.get("id", "UNKNOWN")
@@ -133,16 +143,26 @@ def evaluate_retrieval_scenario(
             latency_ms=0.0,
         )
 
-    t0 = time.perf_counter()
-    try:
-        citations = rag_service.retrieve_articles(query, top_k=top_k, domain_filter=domain_filter)
-        latency_ms = (time.perf_counter() - t0) * 1000.0
+    if preloaded_citations is not None or retrieval_error is not None:
+        citations = preloaded_citations or []
+        latency_ms = retrieval_latency_ms or 0.0
         retrieved_ids = [c.article_id for c in citations]
-        error = None
-    except Exception as exc:
-        latency_ms = (time.perf_counter() - t0) * 1000.0
-        retrieved_ids = []
-        error = str(exc)
+        error = retrieval_error
+    else:
+        t0 = time.perf_counter()
+        try:
+            citations = rag_service.retrieve_articles(
+                query,
+                top_k=top_k,
+                domain_filter=domain_filter,
+            )
+            latency_ms = (time.perf_counter() - t0) * 1000.0
+            retrieved_ids = [c.article_id for c in citations]
+            error = None
+        except Exception as exc:
+            latency_ms = (time.perf_counter() - t0) * 1000.0
+            retrieved_ids = []
+            error = str(exc)
 
     hit = any(exp in retrieved_ids for exp in expected_articles)
     all_hit = all(exp in retrieved_ids for exp in expected_articles)
@@ -189,11 +209,111 @@ async def evaluate_llm_intent(scenario: Dict[str, Any]) -> Tuple[bool, str]:
     return match, predicted_intent
 
 
+_JUDGE_SYSTEM_PROMPT = """\
+Sen tarafsız ve titiz bir hukuk değerlendiricisisin (LLM-as-a-Judge).
+Verilen kullanıcı sorusunu, RAG kanun bağlamını ve asistanın ürettiği yanıtı incele.
+Aşağıdaki 3 kriteri değerlendir:
+1. faithfulness (0.0 - 1.0): Yanıttaki iddialar ve hukuki açıklamalar yalnızca verilen kanun bağlamına mı dayanıyor? Bağlam dışı bilgi veya uydurma varsa skor düşürülür.
+2. answer_relevancy (0.0 - 1.0): Yanıt kullanıcının sorusunu doğrudan ve net karşılıyor mu?
+3. citation_accuracy (true/false): Yanıtta zikredilen kanun ve madde numaraları gerçekten verilen bağlamda mevcut mu?
+
+Yanıtını SADECE geçerli bir JSON formatında ver (markdown veya başka metin ekleme):
+{
+  "faithfulness": <float>,
+  "answer_relevancy": <float>,
+  "citation_accuracy": <bool>,
+  "reasoning": "<kısa Türkçe gerekçe>"
+}
+"""
+
+
+async def evaluate_llm_judge(
+    query: str,
+    context_text: str,
+    answer_text: str,
+    model_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Evaluate faithfulness, relevancy, and citation accuracy using Groq LLM-as-a-judge."""
+    from app.core.config import settings
+    from app.services.llm_service import _call_groq, _is_mock_key
+
+    # Mock API key durumunda deterministik yüksek puan dön (unit testler ve internetsiz ortam için)
+    if _is_mock_key(settings.GROQ_API_KEY):
+        return {
+            "faithfulness": 0.95,
+            "answer_relevancy": 0.95,
+            "citation_accuracy": True,
+            "reasoning": "Mock evaluation: Answer is faithful and relevant.",
+        }
+
+    user_content = (
+        f"KULLANICI SORUSU:\n{query}\n\n"
+        f"KANUN BAĞLAMI:\n{context_text}\n\n"
+        f"ASİSTAN YANITI:\n{answer_text}"
+    )
+
+    messages = [
+        {"role": "system", "content": _JUDGE_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+
+    try:
+        raw_json = await _call_groq(
+            messages,
+            response_format={"type": "json_object"},
+            temperature=0.0,
+            model_name=model_name,
+        )
+        data = json.loads(raw_json)
+        if not isinstance(data, dict):
+            raise ValueError("Judge response must be a JSON object")
+
+        faithfulness = data.get("faithfulness")
+        answer_relevancy = data.get("answer_relevancy")
+        citation_accuracy = data.get("citation_accuracy")
+        reasoning = data.get("reasoning")
+
+        if isinstance(faithfulness, bool) or not isinstance(faithfulness, (int, float)):
+            raise ValueError("faithfulness must be a number")
+        if isinstance(answer_relevancy, bool) or not isinstance(answer_relevancy, (int, float)):
+            raise ValueError("answer_relevancy must be a number")
+        if type(citation_accuracy) is not bool:
+            raise ValueError("citation_accuracy must be a boolean")
+        if not isinstance(reasoning, str):
+            raise ValueError("reasoning must be a string")
+
+        faithfulness = float(faithfulness)
+        answer_relevancy = float(answer_relevancy)
+        if (
+            not math.isfinite(faithfulness)
+            or not math.isfinite(answer_relevancy)
+            or not 0.0 <= faithfulness <= 1.0
+            or not 0.0 <= answer_relevancy <= 1.0
+        ):
+            raise ValueError("judge scores must be finite values between 0.0 and 1.0")
+
+        return {
+            "faithfulness": faithfulness,
+            "answer_relevancy": answer_relevancy,
+            "citation_accuracy": citation_accuracy,
+            "reasoning": reasoning,
+        }
+    except Exception as exc:
+        return {
+            "faithfulness": 0.0,
+            "answer_relevancy": 0.0,
+            "citation_accuracy": False,
+            "reasoning": f"Judge error: {exc}",
+        }
+
+
 def run_evaluation(
     eval_file_path: Path,
     top_k: int = 5,
     domain: Optional[str] = None,
     include_llm: bool = False,
+    eval_judge: bool = False,
+    judge_model: Optional[str] = None,
     output_path: Optional[Path] = None,
     quiet: bool = False,
 ) -> EvalReport:
@@ -240,7 +360,30 @@ def run_evaluation(
         print(f"=======================================================\n")
 
     for sc in scenarios:
-        sc_res = evaluate_retrieval_scenario(sc, top_k=top_k)
+        retrieved_citations: Optional[List[Citation]] = None
+        retrieval_error: Optional[str] = None
+        retrieval_latency_ms = 0.0
+
+        if sc.get("expected_articles"):
+            t0 = time.perf_counter()
+            try:
+                retrieved_citations = rag_service.retrieve_articles(
+                    sc.get("query", ""),
+                    top_k=top_k,
+                    domain_filter=domain,
+                )
+            except Exception as exc:
+                retrieval_error = str(exc)
+            retrieval_latency_ms = (time.perf_counter() - t0) * 1000.0
+
+        sc_res = evaluate_retrieval_scenario(
+            sc,
+            top_k=top_k,
+            domain_filter=domain,
+            preloaded_citations=retrieved_citations,
+            retrieval_error=retrieval_error,
+            retrieval_latency_ms=retrieval_latency_ms,
+        )
 
         # LLM intent evaluation if requested
         if include_llm:
@@ -254,6 +397,40 @@ def run_evaluation(
             except Exception as e:
                 sc_res.predicted_intent = f"ERROR: {e}"
                 sc_res.intent_match = False
+
+        if eval_judge and sc_res.expected_articles:
+            try:
+                from app.services.llm_service import llm_service
+
+                citations = retrieved_citations or []
+                _, ans, _, _, _ = asyncio.run(
+                    llm_service.process_chat_message(
+                        sc.get("query", ""),
+                        citations,
+                    )
+                )
+                ctx_str = "\n\n".join(
+                    f"[{c.article_id}] {c.law_name}: {c.text_snippet}"
+                    for c in citations
+                    if c.text_snippet
+                )
+                j_res = asyncio.run(
+                    evaluate_llm_judge(
+                        sc.get("query", ""),
+                        ctx_str,
+                        ans,
+                        model_name=judge_model,
+                    )
+                )
+                sc_res.faithfulness = j_res["faithfulness"]
+                sc_res.answer_relevancy = j_res["answer_relevancy"]
+                sc_res.citation_accuracy = j_res["citation_accuracy"]
+                sc_res.judge_reasoning = j_res["reasoning"]
+            except Exception as exc:
+                sc_res.faithfulness = 0.0
+                sc_res.answer_relevancy = 0.0
+                sc_res.citation_accuracy = False
+                sc_res.judge_reasoning = f"Judge error: {exc}"
 
         results.append(sc_res)
 
@@ -287,10 +464,15 @@ def run_evaluation(
                 ret_str += "..."
 
             intent_info = f" | intent={sc_res.predicted_intent}" if sc_res.predicted_intent else ""
+            judge_info = (
+                f" | judge=[F:{sc_res.faithfulness:.2f} R:{sc_res.answer_relevancy:.2f}]"
+                if sc_res.faithfulness is not None
+                else ""
+            )
             print(
                 f"[{color}{status_tag}{reset}] {sc_res.scenario_id:<8} ({sc_res.domain:<16}) "
                 f"exp=[{exp_str}] -> ret=[{ret_str}] "
-                f"({sc_res.latency_ms:.1f}ms){intent_info}"
+                f"({sc_res.latency_ms:.1f}ms){intent_info}{judge_info}"
             )
 
     hit_rate = (total_hits / retrieval_applicable_count * 100.0) if retrieval_applicable_count > 0 else 0.0
@@ -306,6 +488,18 @@ def run_evaluation(
 
     mentor_verified_count = sum(1 for s in scenarios if s.get("mentor_verified", False))
     mentor_verification_rate = (mentor_verified_count / total_scenarios * 100.0) if total_scenarios > 0 else 0.0
+
+    faith_list = [r.faithfulness for r in results if r.faithfulness is not None]
+    rel_list = [r.answer_relevancy for r in results if r.answer_relevancy is not None]
+    cit_list = [r.citation_accuracy for r in results if r.citation_accuracy is not None]
+
+    avg_faith = round(sum(faith_list) / len(faith_list), 3) if faith_list else None
+    avg_rel = round(sum(rel_list) / len(rel_list), 3) if rel_list else None
+    cit_acc_pct = (
+        round(sum(1 for c in cit_list if c) / len(cit_list) * 100.0, 1)
+        if cit_list
+        else None
+    )
 
     # Format domain breakdown
     domain_dict: Dict[str, Dict[str, Any]] = {}
@@ -335,6 +529,9 @@ def run_evaluation(
         mentor_verified_count=mentor_verified_count,
         mentor_verification_rate_pct=round(mentor_verification_rate, 1),
         intent_accuracy=round(intent_acc, 2) if intent_acc is not None else None,
+        avg_faithfulness=avg_faith,
+        avg_answer_relevancy=avg_rel,
+        citation_accuracy_pct=cit_acc_pct,
         results=[asdict(r) for r in results],
     )
 
@@ -350,6 +547,10 @@ def run_evaluation(
         print(f" Legal Mentor Verification       : {report.mentor_verification_rate_pct}% ({report.mentor_verified_count}/{report.evaluated_scenarios} scenarios)")
         if report.intent_accuracy is not None:
             print(f" Intent Classification Accuracy  : {report.intent_accuracy}%")
+        if report.avg_faithfulness is not None:
+            print(f" LLM Judge Faithfulness         : {report.avg_faithfulness:.3f} / 1.000")
+            print(f" LLM Judge Answer Relevancy     : {report.avg_answer_relevancy:.3f} / 1.000")
+            print(f" LLM Judge Citation Accuracy    : {report.citation_accuracy_pct}%")
         print("\nDomain Breakdown:")
         for dom, stats in domain_dict.items():
             print(f"  - {dom:<18}: {stats['hit_rate_pct']}% hit@{top_k} (n={stats['total']}, MRR={stats['mrr']})")
@@ -392,6 +593,17 @@ def main() -> None:
         help="Include LLM intent classification evaluation (requires valid GROQ_API_KEY).",
     )
     parser.add_argument(
+        "--eval-judge",
+        action="store_true",
+        help="Run LLM-as-a-judge evaluation for faithfulness, answer relevancy, and citation accuracy.",
+    )
+    parser.add_argument(
+        "--judge-model",
+        type=str,
+        default=None,
+        help="Optional model name for judge evaluation (defaults to settings.GROQ_MODEL_NAME).",
+    )
+    parser.add_argument(
         "--output",
         type=str,
         default=None,
@@ -412,6 +624,8 @@ def main() -> None:
             top_k=args.top_k,
             domain=args.domain,
             include_llm=args.include_llm,
+            eval_judge=args.eval_judge,
+            judge_model=args.judge_model,
             output_path=Path(args.output) if args.output else None,
             quiet=args.quiet,
         )
