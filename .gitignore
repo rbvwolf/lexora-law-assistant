@@ -36,7 +36,7 @@ tmp/
 generated_docs/
 backend/generated_docs/
 reports/*
-!reports/eval_results.json
+!reports/*.json
 !reports/*.md
 backend/reports/
 
