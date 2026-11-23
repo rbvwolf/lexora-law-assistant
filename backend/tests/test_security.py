@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from app.core.security import is_blank, mask_pii, sanitize_input
@@ -96,3 +99,35 @@ def test_is_blank_true(text):
 @pytest.mark.parametrize("text", ["a", "  kira  ", "​kira​"])
 def test_is_blank_false(text):
     assert is_blank(text) is False
+
+
+def test_prompt_injections_dataset_coverage():
+    """Verify all 18 scenarios in data/eval/prompt_injections.json are blocked or masked."""
+    eval_file = Path(__file__).resolve().parent.parent.parent / "data" / "eval" / "prompt_injections.json"
+    assert eval_file.exists(), f"Missing dataset: {eval_file}"
+
+    with open(eval_file, "r", encoding="utf-8") as f:
+        scenarios = json.load(f)
+
+    assert len(scenarios) == 18
+
+    for sc in scenarios:
+        prompt = sc["prompt"]
+        expected = sc["expected"]
+
+        if expected == "blocked":
+            is_safe, resp = sanitize_input(prompt)
+            assert is_safe is False, f"Prompt should be blocked by security filter: {prompt}"
+            assert "Güvenlik uyarısı" in resp
+        elif expected == "masked":
+            masked = mask_pii(prompt)
+            if sc["id"] == "INJ-017":
+                assert "[TC_NO]" in masked
+                assert "[IBAN]" in masked
+                assert "12345678901" not in masked
+                assert "TR120006100511123456789012" not in masked
+            elif sc["id"] == "INJ-018":
+                assert "[PHONE]" in masked
+                assert "[EMAIL]" in masked
+                assert "05321234567" not in masked
+                assert "avukat@ornek.com" not in masked

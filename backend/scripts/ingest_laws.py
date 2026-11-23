@@ -141,6 +141,13 @@ def ingest_laws(
         metadatas=all_metadatas,
     )
 
+    if not reset_collection:
+        existing_ids = set(collection.get()["ids"])
+        orphan_ids = list(existing_ids - set(all_ids))
+        if orphan_ids:
+            logger.info(f"Pruning {len(orphan_ids)} obsolete/orphan articles from collection: {orphan_ids}")
+            collection.delete(ids=orphan_ids)
+
     total_count = collection.count()
     logger.info(
         f"Ingestion complete: {len(all_ids)} articles from {files_found} files upserted. "
