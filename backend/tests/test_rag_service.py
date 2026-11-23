@@ -35,8 +35,9 @@ def test_top_k_edge_cases():
 
     # Large top_k should not crash, clamped to available total docs
     citations = rag_service.retrieve_articles("kira", top_k=500)
-    assert len(citations) <= 87
-    assert len(citations) > 0
+    available_docs = rag_service._get_collection().count()
+    assert available_docs > 0
+    assert 0 < len(citations) <= available_docs
 
 
 def test_special_characters_and_punctuation():
