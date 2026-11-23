@@ -999,3 +999,55 @@ class TestQAQualityAndHallucinationGuardrailsFaz2:
             )
         assert intent == "question_answering"
         assert NO_RELEVANT_LAW_ANSWER in answer
+
+    @pytest.mark.asyncio
+    async def test_call_groq_model_name_override(self):
+        """When model_name is provided, _call_groq passes it to Groq completions and cache."""
+        from app.services.llm_service import _call_groq, _response_cache, _cache_key
+
+        mock_client = MagicMock()
+        mock_completion = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Judge evaluation response"
+        mock_completion.choices = [mock_choice]
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_completion)
+
+        messages = [{"role": "user", "content": "test prompt"}]
+
+        with patch("app.services.llm_service._get_groq_client", return_value=mock_client):
+            res = await _call_groq(messages, model_name="custom-judge-model-8b")
+
+        assert res == "Judge evaluation response"
+        mock_client.chat.completions.create.assert_awaited_once()
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert kwargs["model"] == "custom-judge-model-8b"
+
+        # Cache key should match overridden model
+        expected_key = _cache_key("custom-judge-model-8b", messages)
+        assert expected_key in _response_cache
+        assert _response_cache[expected_key] == "Judge evaluation response"
+
+    @pytest.mark.asyncio
+    async def test_call_groq_default_model_name_uses_settings(self):
+        """When model_name=None, _call_groq falls back to settings.GROQ_MODEL_NAME."""
+        from app.services.llm_service import _call_groq
+
+        mock_client = MagicMock()
+        mock_completion = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Standard response"
+        mock_completion.choices = [mock_choice]
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_completion)
+
+        messages = [{"role": "user", "content": "default test"}]
+
+        with (
+            patch("app.services.llm_service.settings.GROQ_MODEL_NAME", "llama-default-model"),
+            patch("app.services.llm_service._get_groq_client", return_value=mock_client),
+        ):
+            res = await _call_groq(messages, model_name=None)
+
+        assert res == "Standard response"
+        _, kwargs = mock_client.chat.completions.create.call_args
+        assert kwargs["model"] == "llama-default-model"
+
