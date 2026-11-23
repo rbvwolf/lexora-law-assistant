@@ -78,5 +78,21 @@
     "title": "Derhal fesih hakkını kullanma süresi",
     "domain": "is_hukuku",
     "text": "24 ve 25 inci maddelerde gösterilen ahlak ve iyiniyet kurallarına uymayan hallere dayanarak işçi veya işveren için tanınmış olan sözleşmeyi fesih yetkisi, iki taraftan birinin bu çeşit davranışlarda bulunduğunu diğer tarafın öğrendiği günden başlayarak altı iş günü geçtikten ve her halde fiilin gerçekleşmesinden itibaren bir yıl sonra kullanılamaz. Ancak işçinin olayda maddi çıkar sağlaması halinde bir yıllık süre uygulanmaz.\n\nBu haller sebebiyle işçi yahut işverenden iş sözleşmesini yukarıdaki fıkrada öngörülen süre içinde feshedenlerin diğer taraftan tazminat hakları saklıdır."
+  },
+  {
+    "article_id": "IK-32",
+    "law": "4857 Sayılı İş Kanunu",
+    "article_no": 32,
+    "title": "Ücret ve ücretin ödenmesi",
+    "domain": "is_hukuku",
+    "text": "Genel anlamda ücret bir kimseye bir iş karşılığında işveren veya üçüncü kişiler tarafından sağlanan ve para ile ödenen tutardır.\n\nÜcret en geç ayda bir ödenir. İş sözleşmeleri veya toplu iş sözleşmeleri ile ödeme süresi bir haftaya kadar indirilebilir.\n\nÜcret kural olarak Türk parası ile işyerinde veya özel olarak açılan bir banka hesabına ödenir. Gününde ödenmeyen ücretler için mevduata uygulanan en yüksek işletme faizi uygulanır."
+  },
+  {
+    "article_id": "IK-53",
+    "law": "4857 Sayılı İş Kanunu",
+    "article_no": 53,
+    "title": "Yıllık ücretli izin hakkı ve izin süreleri",
+    "domain": "is_hukuku",
+    "text": "İşyerinde işe başladığı günden itibaren, deneme süresi de dahil olmak üzere, en az bir yıl çalışmış olan işçilere yıllık ücretli izin verilir.\n\nYıllık ücretli izin hakkından vazgeçilemez.\n\nİşçilere verilecek yıllık ücretli izin süresi, hizmet süresi;\n\na) Bir yıldan beş yıla kadar (beş yıl dahil) olanlara ondört günden,\n\nb) Beş yıldan fazla onbeş yıldan az olanlara yirmi günden,\n\nc) Onbeş yıl (dahil) ve daha fazla olanlara yirmialtı günden,\n\nAz olamaz."
   }
 ]

@@ -70,5 +70,21 @@
     "title": "Zamanaşımı",
     "domain": "tuketici_hukuku",
     "text": "(1) Kanunlarda veya taraflar arasındaki sözleşmede daha uzun bir süre belirlenmediği takdirde, ayıplı hizmetten sorumluluk, ayıp daha sonra ortaya çıkmış olsa bile, hizmetin ifası tarihinden itibaren iki yıllık zamanaşımına tabidir.\n\n(2) Ayıp, ağır kusur ya da hile ile gizlenmişse zamanaşımı hükümleri uygulanmaz."
+  },
+  {
+    "article_id": "TKHK-48",
+    "law": "6502 Sayılı Tüketicinin Korunması Hakkında Kanun",
+    "article_no": 48,
+    "title": "Mesafeli sözleşmeler",
+    "domain": "tuketici_hukuku",
+    "text": "(1) Mesafeli sözleşme, satıcı veya sağlayıcı ile tüketicinin eş zamanlı fiziksel varlığı olmaksızın, uzaktan iletişim araçlarının kullanılması suretiyle kurulan sözleşmelerdir.\n\n(2) Tüketici, on dört gün içinde herhangi bir gerekçe göstermeksizin ve cezai şart ödemeksizin sözleşmeden cayma hakkına sahiptir. Cayma hakkının kullanıldığına dair bildirimin bu süre içinde satıcı veya sağlayıcıya yöneltilmiş olması yeterlidir.\n\n(3) Satıcı veya sağlayıcı, cayma bildiriminin kendisine ulaştığı tarihten itibaren on dört gün içinde, tahsil edilen tüm ödemeleri tüketiciye iade etmekle yükümlüdür."
+  },
+  {
+    "article_id": "TKHK-56",
+    "law": "6502 Sayılı Tüketicinin Korunması Hakkında Kanun",
+    "article_no": 56,
+    "title": "Garanti belgesi",
+    "domain": "tuketici_hukuku",
+    "text": "(1) Üretici ve ithalatçılar, tüketiciye yönelik üretilen veya ithal edilen mallar için içeriği yönetmelikle belirlenen bir garanti belgesi düzenlemek zorundadır.\n\n(2) Garanti süresi malın teslim tarihinden itibaren başlar ve asgari iki yıldır.\n\n(3) Tüketici bu haklarını üretici ve ithalatçıya karşı da kullanabilir. Malın tamir süresi azami yirmi iş gününü geçemez, aşılması durumunda tüketici bedel iadesi veya malın yenisiyle değişimini talep edebilir."
   }
 ]

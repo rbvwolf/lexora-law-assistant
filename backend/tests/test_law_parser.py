@@ -149,10 +149,10 @@ def test_generated_tkhk_tuketici_json(repo_root: Path):
     with open(json_path, "r", encoding="utf-8") as f:
         articles = json.load(f)
 
-    # Exactly 9 articles (Madde 8 to 16)
-    assert len(articles) == 9
+    # 11 articles: Madde 8 to 16, plus Madde 48 and 56
+    assert len(articles) == 11
 
-    expected_article_nos = list(range(8, 17))
+    expected_article_nos = [*range(8, 17), 48, 56]
     actual_article_nos = [a["article_no"] for a in articles]
     assert actual_article_nos == expected_article_nos
 
@@ -172,6 +172,14 @@ def test_generated_tkhk_tuketici_json(repo_root: Path):
     tkhk_11 = next(a for a in articles if a["article_no"] == 11)
     assert tkhk_11["title"] == "Tüketicinin seçimlik hakları"
     assert "seçimlik haklarından birini kullanabilir" in tkhk_11["text"]
+
+    tkhk_48 = next(a for a in articles if a["article_no"] == 48)
+    assert tkhk_48["title"] == "Mesafeli sözleşmeler"
+    assert "on dört gün içinde" in tkhk_48["text"]
+
+    tkhk_56 = next(a for a in articles if a["article_no"] == 56)
+    assert tkhk_56["title"] == "Garanti belgesi"
+    assert "asgari iki yıldır" in tkhk_56["text"]
 
 
 def test_generated_tbk_temerrut_json(repo_root: Path):
@@ -215,10 +223,10 @@ def test_generated_ik_is_json(repo_root: Path):
     with open(json_path, "r", encoding="utf-8") as f:
         articles = json.load(f)
 
-    # Exactly 10 articles (Madde 17 to 26)
-    assert len(articles) == 10
+    # 12 articles: Madde 17 to 26, plus Madde 32 and 53
+    assert len(articles) == 12
 
-    expected_article_nos = list(range(17, 27))
+    expected_article_nos = [*range(17, 27), 32, 53]
     actual_article_nos = [a["article_no"] for a in articles]
     assert actual_article_nos == expected_article_nos
 
@@ -242,16 +250,24 @@ def test_generated_ik_is_json(repo_root: Path):
     assert ik_24["title"] == "İşçinin haklı nedenle derhal fesih hakkı"
     assert "Ahlak ve iyiniyet kurallarına uymayan haller" in ik_24["text"]
 
+    ik_32 = next(a for a in articles if a["article_no"] == 32)
+    assert ik_32["title"] == "Ücret ve ücretin ödenmesi"
+    assert "en geç ayda bir ödenir" in ik_32["text"]
+
+    ik_53 = next(a for a in articles if a["article_no"] == 53)
+    assert ik_53["title"] == "Yıllık ücretli izin hakkı ve izin süreleri"
+    assert "yıllık ücretli izin verilir" in ik_53["text"]
+
 
 def test_total_law_corpus_completeness(repo_root: Path):
-    """Verify that all 4 laws combined yield exactly 87 valid articles."""
+    """Verify that all 4 laws combined yield exactly 91 valid articles after phase 5."""
     total_count = 0
     law_dir = repo_root / "data" / "laws"
     expected_files = {
         "tbk_kira.json": 58,
-        "tkhk_tuketici.json": 9,
+        "tkhk_tuketici.json": 11,
         "tbk_temerrut.json": 10,
-        "ik_is.json": 10,
+        "ik_is.json": 12,
     }
 
     for fname, exp_count in expected_files.items():
@@ -262,4 +278,4 @@ def test_total_law_corpus_completeness(repo_root: Path):
             assert len(data) == exp_count
             total_count += len(data)
 
-    assert total_count == 87, f"Expected 87 total articles across corpus, got {total_count}"
+    assert total_count == 91, f"Expected 91 total articles across corpus after phase 5, got {total_count}"
