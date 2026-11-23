@@ -53,9 +53,23 @@ def _cached_groq_call(prompt_hash: str) -> str:  # noqa: ARG001
 _response_cache: Dict[str, str] = {}
 
 
-def _cache_key(model: str, messages: List[Dict[str, str]]) -> str:
-    """Stable SHA-256 hash over model + serialised messages."""
-    payload = json.dumps({"model": model, "messages": messages}, ensure_ascii=False, sort_keys=True)
+def _cache_key(
+    model: str,
+    messages: List[Dict[str, str]],
+    temperature: float = 0.2,
+    response_format: Optional[Dict[str, str]] = None,
+) -> str:
+    """Stable SHA-256 hash over model + serialised messages + temperature + response_format."""
+    payload = json.dumps(
+        {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "response_format": response_format,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
@@ -87,7 +101,12 @@ async def _call_groq(
 ) -> str:
     """Call Groq API with prompt-hash caching.  Returns the assistant's text."""
     model = model_name or settings.GROQ_MODEL_NAME
-    key = _cache_key(model, messages)
+    key = _cache_key(
+        model,
+        messages,
+        temperature=temperature,
+        response_format=response_format,
+    )
 
     if key in _response_cache:
         logger.debug("Cache HIT for prompt hash %s…", key[:12])

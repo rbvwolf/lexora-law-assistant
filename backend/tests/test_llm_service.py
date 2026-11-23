@@ -119,6 +119,14 @@ class TestCacheKey:
             != _cache_key("m", [{"role": "user", "content": "B"}])
         )
 
+    def test_different_temperature_different_hash(self):
+        msgs = [{"role": "user", "content": "A"}]
+        assert _cache_key("m", msgs, temperature=0.0) != _cache_key("m", msgs, temperature=0.2)
+
+    def test_different_response_format_different_hash(self):
+        msgs = [{"role": "user", "content": "A"}]
+        assert _cache_key("m", msgs, response_format={"type": "json_object"}) != _cache_key("m", msgs, response_format=None)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. Mock-mode (no real API key) responses
