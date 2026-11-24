@@ -91,6 +91,7 @@ def ingest_laws(
     all_documents: List[str] = []
     all_passages: List[str] = []
     all_metadatas: List[Dict[str, Any]] = []
+    seen_ids = set()
 
     files_found = 0
     for filename in EXPECTED_LAW_FILES:
@@ -105,13 +106,39 @@ def ingest_laws(
 
         for art in articles:
             article_id = str(art["article_id"])
+            if article_id in seen_ids:
+                raise ValueError(f"Duplicate article_id '{article_id}' found in {filepath}")
+            seen_ids.add(article_id)
+
+            raw_article_no = art.get("article_no")
+            if isinstance(raw_article_no, bool) or not (
+                isinstance(raw_article_no, int)
+                or isinstance(raw_article_no, str)
+            ):
+                raise ValueError(
+                    f"Invalid article_no for article '{article_id}' in {filepath}: "
+                    f"{raw_article_no!r}"
+                )
+            try:
+                article_no = int(raw_article_no)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Invalid article_no for article '{article_id}' in {filepath}: "
+                    f"{raw_article_no!r}"
+                ) from exc
+            if article_no <= 0:
+                raise ValueError(
+                    f"Invalid article_no for article '{article_id}' in {filepath}: "
+                    f"{raw_article_no!r}"
+                )
+
             content = format_article_content(art)
             passage = format_passage(content, model_name=model_name)
 
             metadata = {
                 "article_id": article_id,
                 "law": str(art.get("law", "")),
-                "article_no": int(art.get("article_no", 0)),
+                "article_no": article_no,
                 "title": str(art.get("title") or ""),
                 "domain": str(art.get("domain") or ""),
             }
@@ -141,8 +168,8 @@ def ingest_laws(
         metadatas=all_metadatas,
     )
 
-    if not reset_collection:
-        existing_ids = set(collection.get()["ids"])
+    if not reset_collection and files_found == len(EXPECTED_LAW_FILES):
+        existing_ids = set(collection.get(include=[])["ids"])
         orphan_ids = list(existing_ids - set(all_ids))
         if orphan_ids:
             logger.info(f"Pruning {len(orphan_ids)} obsolete/orphan articles from collection: {orphan_ids}")
@@ -160,7 +187,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Ingest Turkish law JSON corpora into ChromaDB.")
     project_root = Path(__file__).resolve().parent.parent.parent
     default_data_dir = project_root / "data" / "laws"
-    default_persist_dir = project_root / settings.CHROMA_PERSIST_DIR.lstrip("./")
+    configured_persist_dir = Path(settings.CHROMA_PERSIST_DIR)
+    default_persist_dir = (
+        configured_persist_dir
+        if configured_persist_dir.is_absolute()
+        else project_root / configured_persist_dir
+    )
 
     parser.add_argument(
         "--data-dir",
