@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import math
+import re
 import sys
 import time
 from dataclasses import asdict, dataclass, field
@@ -30,6 +31,7 @@ backend_root = Path(__file__).resolve().parent.parent
 if str(backend_root) not in sys.path:
     sys.path.insert(0, str(backend_root))
 
+from app.core.security import mask_pii
 from app.schemas.chat import Citation
 from app.services.rag_service import rag_service
 
@@ -126,7 +128,7 @@ def evaluate_retrieval_scenario(
     """Evaluate a single scenario for statutory retrieval metrics."""
     scenario_id = scenario.get("id", "UNKNOWN")
     domain = scenario.get("domain", "unknown")
-    query = scenario.get("query", "")
+    query = scenario.get("query") or ""
     expected_articles = scenario.get("expected_articles", [])
 
     if not expected_articles:
@@ -200,7 +202,7 @@ async def evaluate_llm_intent(scenario: Dict[str, Any]) -> Tuple[bool, str]:
     """
     from app.services.llm_service import llm_service
 
-    query = scenario.get("query", "")
+    query = scenario.get("query") or ""
     expected_intent = scenario.get("expected_intent")
 
     # _classify_intent returns a plain str (Literal), not a Pydantic model.
@@ -246,6 +248,8 @@ async def evaluate_llm_judge(
             "reasoning": "Mock evaluation: Answer is faithful and relevant.",
         }
 
+    query = mask_pii(query)
+    answer_text = mask_pii(answer_text)
     user_content = (
         f"KULLANICI SORUSU:\n{query}\n\n"
         f"KANUN BAĞLAMI:\n{context_text}\n\n"
@@ -264,6 +268,13 @@ async def evaluate_llm_judge(
             temperature=0.0,
             model_name=model_name,
         )
+        raw_json = raw_json.strip()
+        raw_json = re.sub(
+            r"^```(?:json)?\s*|\s*```$",
+            "",
+            raw_json,
+            flags=re.IGNORECASE,
+        ).strip()
         data = json.loads(raw_json)
         if not isinstance(data, dict):
             raise ValueError("Judge response must be a JSON object")
@@ -324,6 +335,9 @@ def run_evaluation(
     with open(eval_file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    if not isinstance(data, dict):
+        raise ValueError("Evaluation dataset root must be a JSON object")
+
     dataset_version = data.get("dataset_version", "unknown")
     raw_scenarios = data.get("scenarios", [])
 
@@ -359,85 +373,91 @@ def run_evaluation(
             print(f" Domain Filter: {domain}")
         print(f"=======================================================\n")
 
-    for sc in scenarios:
-        retrieved_citations: Optional[List[Citation]] = None
-        retrieval_error: Optional[str] = None
-        retrieval_latency_ms = 0.0
+    async def evaluate_scenarios() -> Tuple[List[ScenarioRetrievalResult], int, int]:
+        scenario_results: List[ScenarioRetrievalResult] = []
+        matched_intents = 0
+        intent_total = 0
 
-        if sc.get("expected_articles"):
-            t0 = time.perf_counter()
-            try:
-                retrieved_citations = rag_service.retrieve_articles(
-                    sc.get("query", ""),
-                    top_k=top_k,
-                    domain_filter=domain,
-                )
-            except Exception as exc:
-                retrieval_error = str(exc)
-            retrieval_latency_ms = (time.perf_counter() - t0) * 1000.0
+        for sc in scenarios:
+            retrieved_citations: Optional[List[Citation]] = None
+            retrieval_error: Optional[str] = None
+            retrieval_latency_ms = 0.0
+            query = sc.get("query") or ""
 
-        sc_res = evaluate_retrieval_scenario(
-            sc,
-            top_k=top_k,
-            domain_filter=domain,
-            preloaded_citations=retrieved_citations,
-            retrieval_error=retrieval_error,
-            retrieval_latency_ms=retrieval_latency_ms,
-        )
+            if sc.get("expected_articles"):
+                t0 = time.perf_counter()
+                try:
+                    retrieved_citations = rag_service.retrieve_articles(
+                        query,
+                        top_k=top_k,
+                        domain_filter=domain,
+                    )
+                except Exception as exc:
+                    retrieval_error = str(exc)
+                retrieval_latency_ms = (time.perf_counter() - t0) * 1000.0
 
-        # LLM intent evaluation if requested
-        if include_llm:
-            try:
-                matched, pred_intent = asyncio.run(evaluate_llm_intent(sc))
-                sc_res.intent_match = matched
-                sc_res.predicted_intent = pred_intent
-                intent_total += 1
-                if matched:
-                    intent_matches += 1
-            except Exception as e:
-                sc_res.predicted_intent = f"ERROR: {e}"
-                sc_res.intent_match = False
+            sc_res = evaluate_retrieval_scenario(
+                sc,
+                top_k=top_k,
+                domain_filter=domain,
+                preloaded_citations=retrieved_citations,
+                retrieval_error=retrieval_error,
+                retrieval_latency_ms=retrieval_latency_ms,
+            )
 
-        if eval_judge and sc_res.expected_articles:
-            try:
-                from app.services.llm_service import llm_service
+            if include_llm:
+                try:
+                    matched, pred_intent = await evaluate_llm_intent(sc)
+                    sc_res.intent_match = matched
+                    sc_res.predicted_intent = pred_intent
+                    intent_total += 1
+                    if matched:
+                        matched_intents += 1
+                except Exception as exc:
+                    intent_total += 1
+                    sc_res.predicted_intent = f"ERROR: {exc}"
+                    sc_res.intent_match = False
 
-                citations = retrieved_citations or []
-                _, ans, _, _, _ = asyncio.run(
-                    llm_service.process_chat_message(
-                        sc.get("query", ""),
+            if eval_judge and sc.get("expected_intent") == "question_answering":
+                try:
+                    from app.services.llm_service import llm_service
+
+                    citations = retrieved_citations or []
+                    returned_intent, answer, _, _, _ = await llm_service.process_chat_message(
+                        query,
                         citations,
                     )
-                )
-                ctx_str = "\n\n".join(
-                    f"[{c.article_id}] {c.law_name}: {c.text_snippet}"
-                    for c in citations
-                    if c.text_snippet
-                )
-                j_res = asyncio.run(
-                    evaluate_llm_judge(
-                        sc.get("query", ""),
-                        ctx_str,
-                        ans,
-                        model_name=judge_model,
-                    )
-                )
-                sc_res.faithfulness = j_res["faithfulness"]
-                sc_res.answer_relevancy = j_res["answer_relevancy"]
-                sc_res.citation_accuracy = j_res["citation_accuracy"]
-                sc_res.judge_reasoning = j_res["reasoning"]
-            except Exception as exc:
-                sc_res.faithfulness = 0.0
-                sc_res.answer_relevancy = 0.0
-                sc_res.citation_accuracy = False
-                sc_res.judge_reasoning = f"Judge error: {exc}"
+                    if returned_intent == "question_answering":
+                        context_text = "\n\n".join(
+                            f"[{c.article_id}] {c.law_name}: {c.text_snippet}"
+                            for c in citations
+                            if c.text_snippet
+                        )
+                        judge_result = await evaluate_llm_judge(
+                            query,
+                            context_text,
+                            answer,
+                            model_name=judge_model,
+                        )
+                        sc_res.faithfulness = judge_result["faithfulness"]
+                        sc_res.answer_relevancy = judge_result["answer_relevancy"]
+                        sc_res.citation_accuracy = judge_result["citation_accuracy"]
+                        sc_res.judge_reasoning = judge_result["reasoning"]
+                except Exception as exc:
+                    sc_res.faithfulness = 0.0
+                    sc_res.answer_relevancy = 0.0
+                    sc_res.citation_accuracy = False
+                    sc_res.judge_reasoning = f"Judge error: {exc}"
 
-        results.append(sc_res)
+            scenario_results.append(sc_res)
 
-        # Update domain summary
-        dom_sum = domain_map.setdefault(sc_res.domain, DomainSummary())
+        return scenario_results, matched_intents, intent_total
 
+    results, intent_matches, intent_total = asyncio.run(evaluate_scenarios())
+
+    for sc_res in results:
         if sc_res.expected_articles:
+            dom_sum = domain_map.setdefault(sc_res.domain, DomainSummary())
             retrieval_applicable_count += 1
             dom_sum.total += 1
             latencies.append(sc_res.latency_ms)

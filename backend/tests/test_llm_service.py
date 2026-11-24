@@ -169,12 +169,16 @@ class TestMockMode:
         with patch("app.services.llm_service.settings") as mock_settings:
             mock_settings.GROQ_API_KEY = "gsk_your_groq_api_key_here"
             mock_settings.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
-            _, answer, *_ = await service.process_chat_message(
+            intent, answer, params, missing, template_id = await service.process_chat_message(
                 "Ayıplı ürün dilekçesi yaz", sample_citations
             )
 
-        # Should mention MOCK and contain some guidance
-        assert answer  # non-empty
+        assert intent == "document_generation"
+        assert template_id == "tuketici_ayipli_mal_ihtarname"
+        assert "MOCK" in answer
+        assert "Ayıplı Mal Tüketici Başvurusu" in answer
+        assert isinstance(params, dict)
+        assert isinstance(missing, list)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -288,7 +292,7 @@ class TestResponseCache:
     @pytest.mark.asyncio
     async def test_second_call_hits_cache(self, service, sample_citations):
         intent_json = json.dumps({"intent": "question_answering"})
-        qa_answer = "TBK Madde 344 uyarınca kira artış oranı TÜFE'yi aşamaz."
+        qa_answer = "TBK Madde 315 uyarınca kiracı temerrüde düşerse sözleşme feshedilebilir."
 
         call_count = 0
 
@@ -380,7 +384,8 @@ class TestKVKKCompliance:
 
     @pytest.mark.asyncio
     async def test_doc_gen_missing_fields_no_pii_keys(self, service, sample_citations):
-        # Simulate LLM returning PII-free missing_fields (mock mode is safe by design)
+        # Mock mode must never return PII keys or PII-like substrings in missing_fields
+        pii_substrings = ("tc", "iban", "ad_soyad", "adres", "telefon", "banka_hesap", "kiraci", "kiraya_veren", "tasinmaz")
         with patch("app.services.llm_service.settings") as ms:
             ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
             ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
@@ -388,20 +393,29 @@ class TestKVKKCompliance:
                 "İhtarname oluştur", sample_citations
             )
 
+        assert missing_fields == ["odeme_suresi_gun"]
         for field in missing_fields:
-            assert field.lower() not in self.PII_FIELD_NAMES, (
+            lowered = field.lower()
+            assert lowered not in self.PII_FIELD_NAMES, (
                 f"PII field '{field}' leaked into missing_fields!"
+            )
+            assert not any(sub in lowered for sub in pii_substrings), (
+                f"PII substring leaked into missing_fields: '{field}'"
             )
 
     @pytest.mark.asyncio
     async def test_groq_mode_pii_not_in_missing_fields(self, service, sample_citations):
-        """Even when Groq returns PII in missing_fields, verify service doesn't crash."""
+        """Even when Groq returns PII in missing_fields or extracted_params, server strips them."""
         intent_json = json.dumps({"intent": "document_generation"})
         # Simulate a badly-behaved LLM response that includes PII field names
         bad_doc_json = json.dumps({
             "suggested_template_id": "kira_ihtarname_temerrut",
-            "extracted_params": {"uyusmazlik_turu": "Kira"},
-            "missing_fields": ["kira_tutari", "tc_kimlik"],  # tc_kimlik should NOT be here
+            "extracted_params": {
+                "uyusmazlik_turu": "Kira",
+                "iban": "TR120000000000000000000000",
+                "kiraci_adres": "İstanbul",
+            },
+            "missing_fields": ["kira_tutari", "tc_kimlik", "banka_hesap_bilgisi"],
         })
 
         with (
@@ -417,14 +431,17 @@ class TestKVKKCompliance:
                 _mock_groq_completion(bad_doc_json),
             ]
 
-            _, _, _, missing_fields, _ = await service.process_chat_message(
+            _, _, extracted_params, missing_fields, _ = await service.process_chat_message(
                 "İhtarname hazırla, TC kimliğim 12345678901",
                 sample_citations,
             )
 
-        # Service should not crash; missing_fields is passed through from LLM
-        # (The system prompt instructs LLM not to include PII - documented contract)
-        assert isinstance(missing_fields, list)
+        assert "tc_kimlik" not in missing_fields
+        assert "banka_hesap_bilgisi" not in missing_fields
+        assert missing_fields == ["kira_tutari"]
+        assert "iban" not in extracted_params
+        assert "kiraci_adres" not in extracted_params
+        assert extracted_params == {"uyusmazlik_turu": "Kira"}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -435,9 +452,10 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_empty_citations_qa_returns_guidance(self, service):
-        """When RAG returns nothing, Q&A should return a helpful fallback."""
+        """When RAG returns nothing, Q&A returns NO_RELEVANT_LAW_ANSWER without calling Groq for Q&A."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+
         intent_json = json.dumps({"intent": "question_answering"})
-        qa_no_context = "Sorunuzla ilgili kanun veritabanımızda yeterli makale bulunamadı."
 
         with (
             patch("app.services.llm_service.settings") as ms,
@@ -447,18 +465,15 @@ class TestEdgeCases:
             ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
             mock_client = AsyncMock()
             mock_client_fn.return_value = mock_client
-            mock_client.chat.completions.create.side_effect = [
-                _mock_groq_completion(intent_json),
-                _mock_groq_completion(qa_no_context),
-            ]
+            mock_client.chat.completions.create.return_value = _mock_groq_completion(intent_json)
 
             intent, answer, *_ = await service.process_chat_message(
                 "Bir sorum var", []  # empty citations
             )
 
-        # With empty citations, our service returns a short fallback without calling Groq for Q&A
         assert intent == "question_answering"
-        assert answer  # non-empty
+        assert answer == NO_RELEVANT_LAW_ANSWER
+        assert mock_client.chat.completions.create.await_count == 1
 
     @pytest.mark.asyncio
     async def test_malformed_intent_json_falls_back_to_out_of_scope(self, service, sample_citations):
@@ -865,19 +880,23 @@ class TestQAQualityAndHallucinationGuardrailsFaz2:
     async def test_qa_answer_empty_citations_returns_canonical_fallback(self, service):
         """When citations list is empty, _answer_legal_question returns canonical fallback without calling Groq."""
         from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
-        answer = await service._answer_legal_question("Kira artış oranı ne kadar?", [])
+        with patch("app.services.llm_service._call_groq", new_callable=AsyncMock) as mock_call:
+            answer = await service._answer_legal_question("Kira artış oranı ne kadar?", [])
         assert answer == NO_RELEVANT_LAW_ANSWER
+        mock_call.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_qa_answer_blank_citations_returns_canonical_fallback(self, service):
-        """When all retrieved citations have blank snippets, returns canonical fallback."""
+        """When all retrieved citations have blank snippets, returns canonical fallback without calling Groq."""
         from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
         blank_citations = [
             Citation(article_id="TBK-X", law_name="Test", text_snippet="   "),
             Citation(article_id="TBK-Y", law_name="Test", text_snippet=""),
         ]
-        answer = await service._answer_legal_question("Soru?", blank_citations)
+        with patch("app.services.llm_service._call_groq", new_callable=AsyncMock) as mock_call:
+            answer = await service._answer_legal_question("Soru?", blank_citations)
         assert answer == NO_RELEVANT_LAW_ANSWER
+        mock_call.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_mock_response_empty_citations_returns_fallback(self, service):
@@ -954,13 +973,19 @@ class TestQAQualityAndHallucinationGuardrailsFaz2:
                 extracted_params=params, missing_fields=missing, suggested_template_id=template_id,
             )
             assert resp_doc.disclaimer == LEGAL_DISCLAIMER
+            assert "avukatlık hizmeti vermez" in resp_doc.disclaimer
 
             # 3. Out of scope intent
+            intent, answer, params, missing, template_id = await service.process_chat_message(
+                "Bugün hava nasıl?", sample_citations
+            )
+            assert intent == "out_of_scope"
             resp_oos = ChatResponse(
-                intent="out_of_scope", answer="Kapsam dışı", citations=[],
-                extracted_params={}, missing_fields=[], suggested_template_id=None,
+                intent=intent, answer=answer, citations=[],
+                extracted_params=params, missing_fields=missing, suggested_template_id=template_id,
             )
             assert resp_oos.disclaimer == LEGAL_DISCLAIMER
+            assert "avukatlık hizmeti vermez" in resp_oos.disclaimer
 
     @pytest.mark.asyncio
     async def test_qa_answer_deduplicates_identical_citation_snippets(self, service):
@@ -1030,10 +1055,9 @@ class TestQAQualityAndHallucinationGuardrailsFaz2:
         _, kwargs = mock_client.chat.completions.create.call_args
         assert kwargs["model"] == "custom-judge-model-8b"
 
-        # Cache key should match overridden model
+        # _call_groq must not populate _response_cache directly; callers cache after validation
         expected_key = _cache_key("custom-judge-model-8b", messages)
-        assert expected_key in _response_cache
-        assert _response_cache[expected_key] == "Judge evaluation response"
+        assert expected_key not in _response_cache
 
     @pytest.mark.asyncio
     async def test_call_groq_default_model_name_uses_settings(self):
@@ -1059,3 +1083,134 @@ class TestQAQualityAndHallucinationGuardrailsFaz2:
         _, kwargs = mock_client.chat.completions.create.call_args
         assert kwargs["model"] == "llama-default-model"
 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 10. Batch 1 Hardening: Citations, Non-dict JSON, Bounded Cache, Thesaurus İ
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestBatch1Hardening:
+    """Tests for citation grounding, JSON type guards, bounded cache, mock routing, and Turkish İ thesaurus."""
+
+    @pytest.mark.asyncio
+    async def test_qa_rejects_unretrieved_article_citation(self, service, sample_citations):
+        """Answer citing an article not in retrieved citations falls back to NO_RELEVANT_LAW_ANSWER and is not cached."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+
+        hallucinated = "Türk Borçlar Kanunu Madde 999 uyarınca kiracı derhal tahliye edilir."
+        with patch("app.services.llm_service._call_groq", return_value=hallucinated):
+            answer = await service._answer_legal_question("Kiracı tahliye?", sample_citations)
+
+        assert answer == NO_RELEVANT_LAW_ANSWER
+        assert len(_response_cache) == 0
+
+    @pytest.mark.asyncio
+    async def test_qa_rejects_wrong_law_for_retrieved_article(self, service, sample_citations):
+        """Answer citing TCK Madde 315 when only TBK-315 was retrieved falls back to NO_RELEVANT_LAW_ANSWER."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+
+        wrong_law = "TCK Madde 315 uyarınca işlem yapılır."
+        with patch("app.services.llm_service._call_groq", return_value=wrong_law):
+            answer = await service._answer_legal_question("Kiracı temerrüt?", sample_citations)
+
+        assert answer == NO_RELEVANT_LAW_ANSWER
+
+    @pytest.mark.asyncio
+    async def test_qa_rejects_answer_without_any_citation(self, service, sample_citations):
+        """Answer omitting statutory citations falls back to NO_RELEVANT_LAW_ANSWER."""
+        from app.services.llm_service import NO_RELEVANT_LAW_ANSWER
+
+        uncited = "Kiracı kirayı ödemezse ev sahibi sözleşmeyi feshedebilir."
+        with patch("app.services.llm_service._call_groq", return_value=uncited):
+            answer = await service._answer_legal_question("Kiracı ödemezse?", sample_citations)
+
+        assert answer == NO_RELEVANT_LAW_ANSWER
+
+    @pytest.mark.asyncio
+    async def test_classify_intent_non_dict_json_falls_back(self, service):
+        """Non-dict JSON (e.g. list or string) in _classify_intent falls back to out_of_scope without caching."""
+        for payload in ('["question_answering"]', '"document_generation"', "123"):
+            _response_cache.clear()
+            with patch("app.services.llm_service._call_groq", return_value=payload):
+                intent = await service._classify_intent("Kira sorusu")
+            assert intent == "out_of_scope"
+            assert len(_response_cache) == 0
+
+    @pytest.mark.asyncio
+    async def test_extract_doc_params_non_dict_json_and_invalid_template(self, service):
+        """Non-dict JSON returns safe defaults; unknown template_id falls back to kira_ihtarname_temerrut."""
+        with patch("app.services.llm_service._call_groq", return_value='["not", "a", "dict"]'):
+            tpl, params, missing = await service._extract_doc_params("İhtarname hazırla")
+        assert tpl == "kira_ihtarname_temerrut"
+        assert params == {}
+        assert missing == ["uyusmazlik_turu", "kira_tutari"]
+        assert len(_response_cache) == 0
+
+        bad_tpl_json = json.dumps({
+            "suggested_template_id": "uydurma_sablon",
+            "extracted_params": "not_a_dict",
+            "missing_fields": "not_a_list",
+        })
+        with patch("app.services.llm_service._call_groq", return_value=bad_tpl_json):
+            tpl2, params2, missing2 = await service._extract_doc_params("İhtarname hazırla")
+        assert tpl2 == "kira_ihtarname_temerrut"
+        assert params2 == {}
+        assert missing2 == []
+
+    @pytest.mark.asyncio
+    async def test_call_groq_empty_choices_returns_empty_string(self):
+        """_call_groq handles empty completion.choices without raising IndexError."""
+        from app.services.llm_service import _call_groq
+
+        mock_client = MagicMock()
+        mock_completion = MagicMock()
+        mock_completion.choices = []
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_completion)
+
+        with patch("app.services.llm_service._get_groq_client", return_value=mock_client):
+            res = await _call_groq([{"role": "user", "content": "test"}])
+
+        assert res == ""
+
+    def test_response_cache_bounded_lru_eviction(self):
+        """_cache_set evicts oldest entries once _RESPONSE_CACHE_MAX_SIZE is exceeded."""
+        from app.services.llm_service import _RESPONSE_CACHE_MAX_SIZE, _cache_set
+
+        for i in range(_RESPONSE_CACHE_MAX_SIZE + 5):
+            _cache_set(f"k-{i}", f"v-{i}")
+
+        assert len(_response_cache) == _RESPONSE_CACHE_MAX_SIZE
+        assert "k-0" not in _response_cache
+        assert f"k-{_RESPONSE_CACHE_MAX_SIZE + 4}" in _response_cache
+
+    @pytest.mark.asyncio
+    async def test_mock_qa_vs_doc_and_out_of_scope(self, service, sample_citations):
+        """Q&A queries with 'fesih', 'yazılı', or 'belgeler' stay question_answering; off-topic is out_of_scope."""
+        with patch("app.services.llm_service.settings") as ms:
+            ms.GROQ_API_KEY = "gsk_mock_key_for_dev_mode"
+            ms.GROQ_MODEL_NAME = "llama-3.3-70b-versatile"
+
+            for qa_msg in (
+                "Sözleşme fesih şartları nedir?",
+                "Yazılı kira sözleşmesi şart mı?",
+                "Fesih için hangi belgeler gerekir?",
+            ):
+                intent, *_ = await service.process_chat_message(qa_msg, sample_citations)
+                assert intent == "question_answering", f"Expected Q&A for: {qa_msg}"
+
+            intent_oos, *_ = await service.process_chat_message("Bugün hava nasıl?", sample_citations)
+            assert intent_oos == "out_of_scope"
+
+    def test_thesaurus_turkish_uppercase_i_and_rental_context(self):
+        """Thesaurus normalizes Turkish İ/I before regex matching and requires rental context for % raise."""
+        from app.core.thesaurus import legal_thesaurus
+
+        expanded_kira = legal_thesaurus.expand_query("KİRA ARTIŞI NE KADAR?")
+        assert "tüfe" in expanded_kira
+
+        expanded_is = legal_thesaurus.expand_query("İŞTEN ÇIKARILDIM")
+        assert "iş sözleşmesinin feshi" in expanded_is
+
+        salary_query = legal_thesaurus.expand_query("Maaşıma %30 zam yapıldı")
+        assert "kira bedelinin belirlenmesi" not in salary_query
+        assert "ücret" in salary_query

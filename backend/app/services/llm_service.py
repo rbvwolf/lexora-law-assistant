@@ -16,11 +16,12 @@ KVKK / AGENTS.md compliance:
     - LEGAL_DISCLAIMER injected in every response.
 """
 
+from collections import OrderedDict
 import hashlib
 import json
 import logging
-from functools import lru_cache
-from typing import Any, Dict, List, Literal, Optional, Tuple
+import re
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
 from app.core.config import settings
 from app.core.langfuse import trace_llm_call
@@ -42,15 +43,18 @@ def _is_mock_key(key: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Prompt-hash cache  (in-memory LRU; survives the process lifetime)
+# Prompt-hash cache  (bounded in-memory LRU; survives the process lifetime)
 # ---------------------------------------------------------------------------
-@lru_cache(maxsize=256)
-def _cached_groq_call(prompt_hash: str) -> str:  # noqa: ARG001
-    """Marker only – real value stored separately; lru_cache key is the hash."""
-    raise NotImplementedError  # never called directly
+_RESPONSE_CACHE_MAX_SIZE = 256
+_response_cache: OrderedDict[str, str] = OrderedDict()
 
 
-_response_cache: Dict[str, str] = {}
+def _cache_set(key: str, value: str) -> None:
+    """Store a validated response in the bounded LRU cache."""
+    _response_cache[key] = value
+    _response_cache.move_to_end(key)
+    while len(_response_cache) > _RESPONSE_CACHE_MAX_SIZE:
+        _response_cache.popitem(last=False)
 
 
 def _cache_key(
@@ -109,6 +113,7 @@ async def _call_groq(
     )
 
     if key in _response_cache:
+        _response_cache.move_to_end(key)
         logger.debug("Cache HIT for prompt hash %s…", key[:12])
         return _response_cache[key]
 
@@ -125,8 +130,10 @@ async def _call_groq(
         kwargs["response_format"] = response_format
 
     completion = await client.chat.completions.create(**kwargs)
+    if not completion.choices:
+        logger.warning("Groq completion returned empty choices; model=%s", model)
+        return ""
     text: str = completion.choices[0].message.content or ""
-    _response_cache[key] = text
     return text
 
 
@@ -233,9 +240,19 @@ _MOCK_DOC_PARAMS: Dict[str, Any] = {
         "uyusmazlik_turu": "Kira Ödememe (Temerrüt)",
         "kira_tutari": 15000,
         "gecikilen_aylar": ["Eylül 2026", "Ekim 2026"],
-        "odeme_suresi_gun": 30,
     },
-    "missing_fields": ["banka_hesap_bilgisi", "kiralanan_tasinmaz_adresi"],
+    "missing_fields": ["odeme_suresi_gun"],
+}
+
+_MOCK_TUKETICI_DOC_PARAMS: Dict[str, Any] = {
+    "suggested_template_id": "tuketici_ayipli_mal_ihtarname",
+    "extracted_params": {
+        "uyusmazlik_turu": "Ayıplı Mal",
+        "urun_adi": "Elektronik Ürün",
+        "satin_alma_tutari": 10000,
+        "ayip_detayi": "Ürün arızalı",
+    },
+    "missing_fields": ["olay_tarihi"],
 }
 
 _MOCK_ARTIS_DOC_PARAMS: Dict[str, Any] = {
@@ -248,6 +265,152 @@ _MOCK_ARTIS_DOC_PARAMS: Dict[str, Any] = {
     },
     "missing_fields": ["kira_baslangic_tarihi"],
 }
+
+# ---------------------------------------------------------------------------
+# Validation helpers (templates, PII stripping, citation grounding)
+# ---------------------------------------------------------------------------
+
+_ALLOWED_TEMPLATE_IDS = frozenset({
+    "kira_ihtarname_temerrut",
+    "tuketici_ayipli_mal_ihtarname",
+    "kira_artis_itiraz_ihtarname",
+})
+
+_PII_FIELD_EXACT = frozenset({
+    "tc",
+    "tc_id",
+    "tc_kimlik",
+    "iban",
+    "ad_soyad",
+    "adres",
+    "telefon",
+    "email",
+    "eposta",
+    "e_posta",
+    "banka_hesap_bilgisi",
+    "tasinmaz_adresi",
+    "kiralanan_tasinmaz_adresi",
+})
+
+_PII_FIELD_SUBSTRINGS = (
+    "tc_kimlik",
+    "tc_id",
+    "_tc",
+    "tc_",
+    "iban",
+    "ad_soyad",
+    "adres",
+    "telefon",
+    "email",
+    "eposta",
+    "banka_hesap",
+    "kiraci_",
+    "kiraya_veren_",
+)
+
+
+def _is_pii_field(field_name: str) -> bool:
+    """Return True if a field name refers to personal identifying information (KVKK)."""
+    norm = field_name.replace("İ", "i").replace("I", "ı").lower().strip()
+    if norm in _PII_FIELD_EXACT:
+        return True
+    return any(sub in norm for sub in _PII_FIELD_SUBSTRINGS)
+
+
+_LAW_CODE_ALIASES: Dict[str, str] = {
+    "tbk": "TBK",
+    "türk borçlar kanunu": "TBK",
+    "borçlar kanunu": "TBK",
+    "6098": "TBK",
+    "tkhk": "TKHK",
+    "tüketicinin korunması hakkında kanun": "TKHK",
+    "tüketici kanunu": "TKHK",
+    "6502": "TKHK",
+    "ik": "IK",
+    "i̇k": "IK",
+    "iş kanunu": "IK",
+    "4857": "IK",
+    "iik": "IIK",
+    "i̇i̇k": "IIK",
+    "icra ve iflas kanunu": "IIK",
+    "2004": "IIK",
+    "hmk": "HMK",
+    "hukuk muhakemeleri kanunu": "HMK",
+    "6100": "HMK",
+    "tmk": "TMK",
+    "türk medeni kanunu": "TMK",
+    "4721": "TMK",
+    "tck": "TCK",
+    "türk ceza kanunu": "TCK",
+    "5237": "TCK",
+}
+
+
+def _canonical_law_code(text: str) -> Optional[str]:
+    """Map a law name, abbreviation, or statute number to a canonical code."""
+    norm = text.replace("İ", "i").replace("I", "ı").lower().strip()
+    for alias, code in _LAW_CODE_ALIASES.items():
+        if alias in norm:
+            return code
+    return None
+
+
+_LAW_PREFIX_PAT = (
+    r"(?:"
+    r"türk borçlar kanunu|borçlar kanunu|"
+    r"tüketicinin korunması hakkında kanun|tüketici kanunu|"
+    r"iş kanunu|icra ve iflas kanunu|hukuk muhakemeleri kanunu|"
+    r"türk medeni kanunu|türk ceza kanunu|"
+    r"tbk|tkhk|i̇k|ik|i̇i̇k|iik|hmk|tmk|tck|"
+    r"6098|6502|4857|2004|6100|4721|5237"
+    r")"
+)
+_CITE_KEYWORD_RE = re.compile(
+    rf"(?:({_LAW_PREFIX_PAT})\s*(?:sayılı\s+kanun(?:'?un|'nın|un)?\s*)?)?\b(?:madde|md\.?|m\.?)\s*(\d+)\b"
+)
+_CITE_ORDINAL_RE = re.compile(
+    rf"(?:({_LAW_PREFIX_PAT})\s*(?:sayılı\s+kanun(?:'?un|'nın|un)?\s*)?)?\b(\d+)\.\s*madd(?:e|esi|esine|eyi|ede|eden)\b"
+)
+_CITE_CODE_NUM_RE = re.compile(r"\b(tbk|tkhk|i̇k|ik|i̇i̇k|iik|hmk|tmk|tck)[-\s]+(\d+)\b")
+
+
+def _validate_answer_citations(answer: str, valid_citations: List[Citation]) -> bool:
+    """Verify the answer cites at least one retrieved article and no unretrieved articles."""
+    retrieved_nums: Set[str] = set()
+    retrieved_pairs: Set[Tuple[str, str]] = set()
+
+    for c in valid_citations:
+        nums = re.findall(r"\d+", c.article_id or "")
+        law_code = _canonical_law_code(c.article_id or "") or _canonical_law_code(c.law_name or "")
+        for num in nums:
+            retrieved_nums.add(num)
+            if law_code:
+                retrieved_pairs.add((law_code, num))
+
+    if not retrieved_nums:
+        return False
+
+    norm_answer = answer.replace("İ", "i").replace("I", "ı").lower()
+    found_citations: List[Tuple[Optional[str], str]] = []
+
+    for pat in (_CITE_KEYWORD_RE, _CITE_ORDINAL_RE, _CITE_CODE_NUM_RE):
+        for match in pat.finditer(norm_answer):
+            raw_law, num = match.group(1), match.group(2)
+            law_code = _canonical_law_code(raw_law) if raw_law else None
+            found_citations.append((law_code, num))
+
+    if not found_citations:
+        return False
+
+    for law_code, num in found_citations:
+        if num not in retrieved_nums:
+            return False
+        if law_code and retrieved_pairs and (law_code, num) not in retrieved_pairs:
+            # Only reject on law mismatch if retrieved_pairs has entries for this article number
+            if any(pair_num == num for _, pair_num in retrieved_pairs):
+                return False
+
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -328,15 +491,33 @@ class LLMService:
             {"role": "system", "content": _INTENT_SYSTEM},
             {"role": "user", "content": message},
         ]
-        raw = await _call_groq(messages, response_format={"type": "json_object"}, temperature=0.0)
+        response_format = {"type": "json_object"}
+        raw = await _call_groq(
+            messages,
+            response_format=response_format,
+            temperature=0.0,
+            model_name=self.model_name,
+        )
 
         try:
             data = json.loads(raw)
+            if not isinstance(data, dict):
+                logger.warning("Intent classification JSON is not a dict; raw=%s", str(raw)[:200])
+                return "out_of_scope"
             intent_value = data.get("intent", "out_of_scope")
             if intent_value in ("question_answering", "document_generation", "out_of_scope"):
+                _cache_set(
+                    _cache_key(
+                        self.model_name,
+                        messages,
+                        temperature=0.0,
+                        response_format=response_format,
+                    ),
+                    raw,
+                )
                 return intent_value  # type: ignore[return-value]
-        except (json.JSONDecodeError, KeyError):
-            logger.warning("Intent classification JSON parse failed; raw=%s", raw[:200])
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            logger.warning("Intent classification JSON parse failed; raw=%s", str(raw)[:200])
 
         return "out_of_scope"
 
@@ -379,9 +560,21 @@ class LLMService:
                 ),
             },
         ]
-        answer = await _call_groq(messages, temperature=0.1)
+        answer = await _call_groq(messages, temperature=0.1, model_name=self.model_name)
         stripped = answer.strip()
-        return stripped if stripped else NO_RELEVANT_LAW_ANSWER
+        if not stripped:
+            return NO_RELEVANT_LAW_ANSWER
+
+        if stripped == NO_RELEVANT_LAW_ANSWER:
+            _cache_set(_cache_key(self.model_name, messages, temperature=0.1), stripped)
+            return stripped
+
+        if not _validate_answer_citations(stripped, valid_citations):
+            logger.warning("Rejected Q&A answer failing citation grounding check.")
+            return NO_RELEVANT_LAW_ANSWER
+
+        _cache_set(_cache_key(self.model_name, messages, temperature=0.1), stripped)
+        return stripped
 
     # ------------------------------------------------------------------
     # Step 2b: Document parameter extraction
@@ -395,20 +588,59 @@ class LLMService:
             {"role": "system", "content": _DOC_SYSTEM},
             {"role": "user", "content": message},
         ]
-        raw = await _call_groq(messages, response_format={"type": "json_object"}, temperature=0.0)
+        response_format = {"type": "json_object"}
+        raw = await _call_groq(
+            messages,
+            response_format=response_format,
+            temperature=0.0,
+            model_name=self.model_name,
+        )
 
         try:
             data = json.loads(raw)
-            template_id: str = data.get("suggested_template_id", "kira_ihtarname_temerrut")
-            extracted_params: Dict[str, Any] = data.get("extracted_params", {})
-            missing_fields: List[str] = data.get("missing_fields", [])
+            if not isinstance(data, dict):
+                logger.warning("Doc param extraction JSON is not a dict; raw=%s", str(raw)[:200])
+                return "kira_ihtarname_temerrut", {}, ["uyusmazlik_turu", "kira_tutari"]
 
-            # Drop null values from extracted_params to keep payload clean
-            extracted_params = {k: v for k, v in extracted_params.items() if v is not None}
+            raw_template_id = data.get("suggested_template_id")
+            template_id: str = (
+                raw_template_id
+                if isinstance(raw_template_id, str) and raw_template_id in _ALLOWED_TEMPLATE_IDS
+                else "kira_ihtarname_temerrut"
+            )
 
+            raw_params = data.get("extracted_params")
+            if isinstance(raw_params, dict):
+                extracted_params: Dict[str, Any] = {
+                    str(k): v
+                    for k, v in raw_params.items()
+                    if v is not None and not _is_pii_field(str(k))
+                }
+            else:
+                extracted_params = {}
+
+            raw_missing = data.get("missing_fields")
+            if isinstance(raw_missing, list):
+                missing_fields: List[str] = [
+                    str(f)
+                    for f in raw_missing
+                    if f is not None and str(f).strip() and not _is_pii_field(str(f))
+                ]
+            else:
+                missing_fields = []
+
+            _cache_set(
+                _cache_key(
+                    self.model_name,
+                    messages,
+                    temperature=0.0,
+                    response_format=response_format,
+                ),
+                raw,
+            )
             return template_id, extracted_params, missing_fields
-        except (json.JSONDecodeError, KeyError):
-            logger.warning("Doc param extraction JSON parse failed; raw=%s", raw[:200])
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            logger.warning("Doc param extraction JSON parse failed; raw=%s", str(raw)[:200])
             return "kira_ihtarname_temerrut", {}, ["uyusmazlik_turu", "kira_tutari"]
 
     # ------------------------------------------------------------------
@@ -472,13 +704,33 @@ class LLMService:
         """Return deterministic mock responses when no real Groq key is present."""
         # Turkish uppercase normalization: İ->i, I->ı
         lowered = message.replace("İ", "i").replace("I", "ı").lower()
-        doc_keywords = [
-            "ihtarname", "dilekçe", "tahliye", "başvuru", "hazırla", "yaz", "oluştur", "fesih", "belge",
-        ]
-        artis_keywords = ["artış", "itiraz", "zam", "fahiş", "tüfe"]
-        if any(kw in lowered for kw in doc_keywords):
-            # Route artış/itiraz/zam/fahiş queries to the new template mock
-            if any(kw in lowered for kw in artis_keywords):
+
+        out_of_scope_re = re.compile(
+            r"\b(hava durumu|hava nasıl|yemek tarifi|futbol|maç sonucu|ceza davası|boşanma|vergi|kripto)\b"
+        )
+        if out_of_scope_re.search(lowered):
+            return (
+                "out_of_scope",
+                "⚠️ [MOCK MOD] Bu konuda yardımcı olamıyorum. Yalnızca kira hukuku, tüketici hukuku, "
+                "iş hukuku ve genel borçlar hukuku kapsamındaki sorularınızda ve yasal belge "
+                "taleplerinizde destek sunabiliyorum.",
+                {},
+                [],
+                None,
+            )
+
+        doc_noun_re = re.compile(r"\b(ihtarname\w*|dilekçe\w*|belge\w*|başvuru\w*)\b")
+        doc_action_re = re.compile(
+            r"\b(hazırla\w*|oluştur\w*|düzenle\w*|yazdır\w*|yaz|üret\w*|göndermemi istedi)\b"
+        )
+        is_question = "?" in lowered and bool(
+            re.search(r"\b(nedir|nasıl|ne olur|şartları|gerekir|mı|mi|mu|mü)\b", lowered)
+        )
+
+        if doc_noun_re.search(lowered) and doc_action_re.search(lowered) and not is_question:
+            if any(kw in lowered for kw in ("ayıplı", "bozuk", "arızalı", "tüketici", "ürün")):
+                mock = _MOCK_TUKETICI_DOC_PARAMS
+            elif any(kw in lowered for kw in ("artış", "itiraz", "zam", "fahiş", "tüfe")):
                 mock = _MOCK_ARTIS_DOC_PARAMS
             else:
                 mock = _MOCK_DOC_PARAMS

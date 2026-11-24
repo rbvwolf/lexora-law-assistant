@@ -458,11 +458,15 @@
       ],
       "expected_template_id": "kira_artis_itiraz_ihtarname",
       "expected_extracted_params": {
-        "kira_tutari": 15000,
-        "uyusmazlik_turu": "Kira Artış Oranına İtiraz"
+        "mevcut_kira_tutari": 15000,
+        "talep_edilen_kira_tutari": 30000,
+        "tufe_oran": 48.0,
+        "noter_ili": "İstanbul"
       },
-      "expected_missing_fields": [],
-      "ground_truth_summary": "Sistem niyeti document_generation olarak sınıflandırmalı, kira artış itiraz ihtarnamesi şablonunu seçmeli ve mevcut kira bedeli ile uyuşmazlık türünü çıkarmalıdır.",
+      "expected_missing_fields": [
+        "kira_baslangic_tarihi"
+      ],
+      "ground_truth_summary": "Sistem niyeti document_generation olarak sınıflandırmalı, kira artış itiraz ihtarnamesi şablonunu seçmeli, mevcut kira ile talep edilen kira bedelini çıkarmalı ve kira sözleşmesi başlangıç tarihini sormalıdır.",
       "mentor_verified": true,
       "mentor_reviewer": "Hukuk Danışmanlığı & Mevzuat Çalışma Grubu",
       "mentor_verification_date": "2026-11-01"

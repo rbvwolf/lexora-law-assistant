@@ -1,12 +1,15 @@
 """Unit tests for evaluation CLI script and metrics calculations."""
 
+import asyncio
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.schemas.chat import Citation
+from scripts import ingest_laws as ingest_laws_script
 from scripts.run_eval import (
     DomainSummary,
     calculate_p95,
@@ -169,11 +172,18 @@ async def test_evaluate_llm_judge_real_call_exception():
 
 @pytest.mark.asyncio
 async def test_evaluate_llm_judge_rejects_invalid_semantic_values():
-    """Verify out-of-range, string-boolean, and missing judge fields fall back."""
+    """Verify malformed JSON and invalid judge field values fall back."""
     invalid_responses = [
         '{"faithfulness": 1.2, "answer_relevancy": 0.8, "citation_accuracy": true, "reasoning": "Geçersiz"}',
         '{"faithfulness": 0.8, "answer_relevancy": 0.7, "citation_accuracy": "false", "reasoning": "Geçersiz"}',
         '{"faithfulness": 0.8, "answer_relevancy": 0.7}',
+        '{"faithfulness": NaN, "answer_relevancy": 0.8, "citation_accuracy": true, "reasoning": "Geçersiz"}',
+        '{"faithfulness": 0.8, "answer_relevancy": Infinity, "citation_accuracy": true, "reasoning": "Geçersiz"}',
+        '{"faithfulness": 0.8, "answer_relevancy": -0.1, "citation_accuracy": true, "reasoning": "Geçersiz"}',
+        '{"faithfulness": true, "answer_relevancy": 0.8, "citation_accuracy": true, "reasoning": "Geçersiz"}',
+        '{"faithfulness": 0.8, "answer_relevancy": false, "citation_accuracy": true, "reasoning": "Geçersiz"}',
+        "[]",
+        '{"faithfulness": 0.8, "answer_relevancy": 0.7, "citation_accuracy": true, "reasoning": 42}',
     ]
 
     with patch("app.core.config.settings.GROQ_API_KEY", "gsk_real_test_key"):
@@ -194,6 +204,21 @@ async def test_evaluate_llm_judge_rejects_invalid_semantic_values():
             assert result["citation_accuracy"] is False
             assert result["reasoning"].startswith("Judge error:")
 
+        with patch(
+            "app.services.llm_service._call_groq",
+            new_callable=AsyncMock,
+            return_value=(
+                '```json\n{"faithfulness": 0.9, "answer_relevancy": 0.85, '
+                '"citation_accuracy": true, "reasoning": "Geçerli."}\n```'
+            ),
+        ):
+            result = await evaluate_llm_judge("Soru", "Bağlam", "Yanıt")
+
+    assert result["faithfulness"] == 0.9
+    assert result["answer_relevancy"] == 0.85
+    assert result["citation_accuracy"] is True
+    assert result["reasoning"] == "Geçerli."
+
 
 def test_run_evaluation_with_judge_flag_aggregate_details(tmp_path):
     """Verify eval_judge populates per-scenario and aggregate judge metrics."""
@@ -204,6 +229,7 @@ def test_run_evaluation_with_judge_flag_aggregate_details(tmp_path):
                 "id": "EVAL-001",
                 "domain": "kira_hukuku",
                 "query": "Kiracı kirayı ödemiyor",
+                "expected_intent": "question_answering",
                 "expected_articles": ["TBK-315"],
             },
             {
@@ -254,6 +280,170 @@ def test_run_evaluation_with_judge_flag_aggregate_details(tmp_path):
     assert report.results[0]["citation_accuracy"] is True
     assert report.results[0]["judge_reasoning"] == "Bağlama uygun ve ilgili."
     assert report.results[1]["faithfulness"] is None
+
+
+def test_run_evaluation_integration_uses_one_loop_and_routes_judge_by_intent(tmp_path):
+    """Exercise intent, chat, and judge through the real service using a fake Groq client."""
+    from app.services import llm_service as llm_service_module
+
+    eval_file = tmp_path / "integration_scenarios.json"
+    eval_file.write_text(
+        json.dumps(
+            {
+                "scenarios": [
+                    {
+                        "id": "INTENT-ERROR",
+                        "query": "integration intent error",
+                        "expected_intent": "question_answering",
+                        "expected_articles": [],
+                    },
+                    {
+                        "id": "INTENT-QA",
+                        "query": "integration qa success",
+                        "expected_intent": "question_answering",
+                        "expected_articles": [],
+                    },
+                    {
+                        "id": "INTENT-DOC",
+                        "query": "integration document request",
+                        "expected_intent": "document_generation",
+                        "expected_articles": [],
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loop_instances = []
+    requests = []
+    query_call_counts = {}
+
+    async def fake_create(**kwargs):
+        loop_instances.append(asyncio.get_running_loop())
+        requests.append(kwargs)
+        messages = kwargs["messages"]
+        system_prompt = messages[0]["content"]
+        user_content = messages[-1]["content"]
+
+        if system_prompt == llm_service_module._INTENT_SYSTEM:
+            query_call_counts[user_content] = query_call_counts.get(user_content, 0) + 1
+            if user_content == "integration intent error" and query_call_counts[user_content] == 1:
+                raise RuntimeError("intent classification failed")
+            intent = (
+                "document_generation"
+                if user_content == "integration document request"
+                else "question_answering"
+            )
+            content = json.dumps({"intent": intent})
+        elif "LLM-as-a-Judge" in system_prompt:
+            content = json.dumps(
+                {
+                    "faithfulness": 0.9,
+                    "answer_relevancy": 0.8,
+                    "citation_accuracy": True,
+                    "reasoning": "Integration judge response.",
+                }
+            )
+        else:
+            raise AssertionError(f"Unexpected Groq prompt: {system_prompt[:80]}")
+
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+        )
+
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    with (
+        patch("app.core.config.settings.GROQ_API_KEY", "gsk_real_integration_test_key"),
+        patch("app.services.llm_service._get_groq_client", return_value=fake_client),
+    ):
+        report = run_evaluation(
+            eval_file_path=eval_file,
+            include_llm=True,
+            eval_judge=True,
+            judge_model="integration-judge-model",
+            quiet=True,
+        )
+
+    assert loop_instances
+    assert all(loop is loop_instances[0] for loop in loop_instances)
+    assert report.intent_accuracy == pytest.approx(66.67)
+    assert report.results[0]["intent_match"] is False
+    assert report.results[0]["predicted_intent"] == "ERROR: intent classification failed"
+    assert report.results[1]["intent_match"] is True
+    assert report.results[2]["intent_match"] is True
+
+    judge_requests = [
+        request
+        for request in requests
+        if "LLM-as-a-Judge" in request["messages"][0]["content"]
+    ]
+    assert len(judge_requests) == 2
+    assert all(request["model"] == "integration-judge-model" for request in judge_requests)
+    assert query_call_counts["integration document request"] == 1
+
+
+def test_ingest_laws_skips_orphan_pruning_when_expected_file_is_missing(tmp_path):
+    """Keep existing collection entries when only part of the law corpus is available."""
+    data_dir = tmp_path / "laws"
+    data_dir.mkdir()
+    (data_dir / ingest_laws_script.EXPECTED_LAW_FILES[0]).write_text(
+        json.dumps(
+            [
+                {
+                    "article_id": "TBK-299",
+                    "law": "TBK",
+                    "article_no": 299,
+                    "title": "Kira sözleşmesi",
+                    "text": "Kiraya veren bir şeyin kullanılmasını bırakır.",
+                    "domain": "kira_hukuku",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    class FakeCollection:
+        def __init__(self):
+            self.get_calls = []
+            self.deleted_ids = []
+
+        def upsert(self, **kwargs):
+            self.upserted_ids = kwargs["ids"]
+
+        def get(self, **kwargs):
+            self.get_calls.append(kwargs)
+            return {"ids": ["obsolete-id"]}
+
+        def delete(self, ids):
+            self.deleted_ids.extend(ids)
+
+        def count(self):
+            return 1
+
+    class FakeModel:
+        def encode(self, *args, **kwargs):
+            return SimpleNamespace(tolist=lambda: [[0.1]])
+
+    collection = FakeCollection()
+    client = SimpleNamespace(get_or_create_collection=lambda **kwargs: collection)
+    with (
+        patch.object(ingest_laws_script.chromadb, "PersistentClient", return_value=client),
+        patch.object(ingest_laws_script, "SentenceTransformer", return_value=FakeModel()),
+        patch.object(ingest_laws_script, "format_passage", side_effect=lambda text, **kwargs: text),
+    ):
+        total = ingest_laws_script.ingest_laws(
+            data_dir=data_dir,
+            persist_dir=tmp_path / "chroma",
+            model_name="test-embedding-model",
+        )
+
+    assert total == 1
+    assert collection.upserted_ids == ["TBK-299"]
+    assert collection.get_calls == []
+    assert collection.deleted_ids == []
 
 
 def test_run_evaluation_missing_file_raises():
