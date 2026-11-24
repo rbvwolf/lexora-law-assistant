@@ -25,7 +25,7 @@ class LegalThesaurus:
         # Rental Law: Rent increase / limitation gaps (TBK 344)
         (re.compile(r"\bkira\w*\s+([^.!?]*\s+)?(art[ıi]r\w*|zam\w*|artı(ş|şı|şları))\b", re.IGNORECASE), "kira bedelinin belirlenmesi artış oranı tüketici fiyat endeksi tüfe"),
         (re.compile(r"\bkiray[ıi]\s+([^.!?]*\s+)?art[ıi]r\w*\b", re.IGNORECASE), "kira bedelinin belirlenmesi artış oranı tüketici fiyat endeksi tüfe"),
-        (re.compile(r"(%|\byüzde\s*)\s*\d+\s*(zam|art[ıi]r|artış)", re.IGNORECASE), "kira bedelinin belirlenmesi artış oranı tüketici fiyat endeksi tüfe"),
+        (re.compile(r"(?=.*\b(kira\w*|ev sahibi\w*|kirac[ıi]\w*|konut\w*)\b).*(%|\byüzde\s*)\s*\d+\s*(zam|art[ıi]r|artış)", re.IGNORECASE), "kira bedelinin belirlenmesi artış oranı tüketici fiyat endeksi tüfe"),
         # Labor Law terminology gaps
         (re.compile(r"\bmaaş\w*\b", re.IGNORECASE), "ücret"),
         (re.compile(r"\bfazla mesai\w*\b", re.IGNORECASE), "fazla çalışma ücreti"),
@@ -51,11 +51,12 @@ class LegalThesaurus:
             return ""
 
         original = query.strip()
+        normalized = original.replace("İ", "i").replace("I", "ı").lower()
         expansions = []
 
         for pattern, statutory_concept in self.CONCEPT_MAPPINGS:
-            if pattern.search(original):
-                if statutory_concept not in expansions and statutory_concept.lower() not in original.lower():
+            if pattern.search(normalized):
+                if statutory_concept not in expansions and statutory_concept.lower() not in normalized:
                     expansions.append(statutory_concept)
 
         if not expansions:
