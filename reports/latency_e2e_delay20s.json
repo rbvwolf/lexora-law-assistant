@@ -1,0 +1,301 @@
+{
+  "measured_at": "2026-11-26T18:48:26+00:00",
+  "mode": "remote",
+  "target": "http://localhost:8001",
+  "model": null,
+  "embedding_model": null,
+  "scenarios": 30,
+  "runs": 1,
+  "delay_s": 20.0,
+  "cold_start_ms": 4025.1,
+  "requests": 30,
+  "succeeded": 30,
+  "failed": 0,
+  "failures": [],
+  "latency_ms": {
+    "min": 392.4,
+    "p50": 1317.5,
+    "mean": 1304.4,
+    "p95": 2080.7,
+    "max": 2424.2
+  },
+  "p95_by_intent_ms": {
+    "document_generation": 1183.3,
+    "out_of_scope": 523.4,
+    "question_answering": 2080.7
+  },
+  "target_p95_ms": 10000,
+  "passed": true,
+  "samples": [
+    {
+      "status_code": 200,
+      "latency_ms": 1189.0,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-001",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1359.9,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-002",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 977.1,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-003",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1642.1,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-004",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1369.1,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-005",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 925.6,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-006",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 2424.2,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-007",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1317.5,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-008",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1440.0,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-009",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1351.8,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-010",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 977.8,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-011",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1344.1,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-012",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1089.3,
+      "intent": "document_generation",
+      "error_code": null,
+      "id": "EVAL-013",
+      "run": 1,
+      "expected_intent": "document_generation"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1121.3,
+      "intent": "document_generation",
+      "error_code": null,
+      "id": "EVAL-014",
+      "run": 1,
+      "expected_intent": "document_generation"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 392.4,
+      "intent": "out_of_scope",
+      "error_code": null,
+      "id": "EVAL-015",
+      "run": 1,
+      "expected_intent": "out_of_scope"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1743.8,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-016",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1145.3,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-017",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1477.2,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-018",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1560.5,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-019",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1419.9,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-020",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1229.1,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-021",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1604.8,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-022",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 2080.7,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-023",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1272.9,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-024",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1661.4,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-025",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1719.7,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-026",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1183.3,
+      "intent": "document_generation",
+      "error_code": null,
+      "id": "EVAL-027",
+      "run": 1,
+      "expected_intent": "document_generation"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 1139.9,
+      "intent": "document_generation",
+      "error_code": null,
+      "id": "EVAL-028",
+      "run": 1,
+      "expected_intent": "document_generation"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 523.4,
+      "intent": "out_of_scope",
+      "error_code": null,
+      "id": "EVAL-029",
+      "run": 1,
+      "expected_intent": "out_of_scope"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 450.0,
+      "intent": "out_of_scope",
+      "error_code": null,
+      "id": "EVAL-030",
+      "run": 1,
+      "expected_intent": "out_of_scope"
+    }
+  ]
+}
