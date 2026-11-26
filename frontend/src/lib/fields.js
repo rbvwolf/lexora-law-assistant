@@ -15,11 +15,16 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 export const KIRA_ARTIS_TEMPLATE_ID = 'kira_artis_itiraz_ihtarname'
 export const TUFE_ORAN_MAX = 200
 
+// doc_service.TEMERRUT_TEMPLATE_ID and ODEME_SURESI_MIN_GUN / ODEME_SURESI_MAX_GUN (TBK m. 315)
+export const TEMERRUT_TEMPLATE_ID = 'kira_ihtarname_temerrut'
+export const ODEME_SURESI_MIN_GUN = 30
+export const ODEME_SURESI_MAX_GUN = 365
+
 /**
  * Templates whose backend output is a real rendered document. The others still produce
  * placeholder files (doc_service._RENDER_CONTEXT_BUILDERS); update this when G2 adds one.
  */
-export const READY_TEMPLATE_IDS = Object.freeze([KIRA_ARTIS_TEMPLATE_ID])
+export const READY_TEMPLATE_IDS = Object.freeze([KIRA_ARTIS_TEMPLATE_ID, TEMERRUT_TEMPLATE_ID])
 
 /** @param {unknown} value */
 export function isBlank(value) {
@@ -254,6 +259,34 @@ export function kiraArtisCrossErrors(values) {
     errors.talep_edilen_kira_tutari = 'Talep edilen kira yasal sınırın altında; bu durumda itiraz ihtarnamesi gerekmez.'
   }
   return errors
+}
+
+/**
+ * Cross-field check for the rent default notice, mirroring doc_service._check_temerrut.
+ * @returns {Record<string, string>}
+ */
+export function temerrutCrossErrors(values) {
+  const errors = {}
+  for (const name of ['kira_tutari', 'odenmeyen_toplam_tutar']) {
+    const n = parseNumber(values?.[name])
+    if (Number.isFinite(n) && n <= 0) errors[name] = 'Tutar sıfırdan büyük olmalıdır.'
+  }
+  const sure = parseNumber(values?.odeme_suresi_gun)
+  if (Number.isFinite(sure) && (!Number.isInteger(sure) || sure < ODEME_SURESI_MIN_GUN || sure > ODEME_SURESI_MAX_GUN)) {
+    errors.odeme_suresi_gun = `TBK m. 315 uyarınca süre en az ${ODEME_SURESI_MIN_GUN} gün olmalıdır (tam gün, en fazla ${ODEME_SURESI_MAX_GUN}).`
+  }
+  return errors
+}
+
+/**
+ * Cross-field errors for any template (empty for templates without extra rules).
+ * @param {string} templateId
+ * @param {Record<string, unknown>} values
+ */
+export function crossFieldErrors(templateId, values) {
+  if (templateId === KIRA_ARTIS_TEMPLATE_ID) return kiraArtisCrossErrors(values)
+  if (templateId === TEMERRUT_TEMPLATE_ID) return temerrutCrossErrors(values)
+  return {}
 }
 
 // ---------------------------------------------------------------------------

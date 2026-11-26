@@ -132,21 +132,7 @@ async def test_document_templates_endpoint():
 async def test_document_generate_and_download_flow():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        gen_payload = {
-            "template_id": "kira_ihtarname_temerrut",
-            "case_params": {
-                "kira_tutari": 18000,
-                "gecikilen_aylar": "Eylül-Ekim 2026",
-                "odeme_suresi_gun": 30,
-                "tasinmaz_adresi": "Kadıköy / İstanbul",
-            },
-            "pii": {
-                "kiraya_veren_ad_soyad": "Mehmet Yılmaz",
-                "kiraya_veren_tc": "11111111111",
-                "kiraci_ad_soyad": "Ali Demir",
-                "iban": "TR120006100511123456789012",
-            },
-        }
+        gen_payload = _kira_payload()
         response = await client.post("/api/v1/documents/generate", json=gen_payload)
         assert response.status_code == 200
         data = response.json()
@@ -182,15 +168,20 @@ def _kira_payload():
     return {
         "template_id": "kira_ihtarname_temerrut",
         "case_params": {
+            "kira_baslangic_tarihi": "2024-03-01",
             "kira_tutari": 18000,
-            "gecikilen_aylar": "Eylül-Ekim 2026",
+            "gecikilen_aylar": "Eylül 2026, Ekim 2026",
+            "odenmeyen_toplam_tutar": 36000,
             "odeme_suresi_gun": 30,
-            "tasinmaz_adresi": "Kadıköy / İstanbul",
+            "noter_ili": "İstanbul",
         },
         "pii": {
             "kiraya_veren_ad_soyad": "Mehmet Yılmaz",
             "kiraya_veren_tc": "11111111111",
+            "kiraya_veren_adres": "Moda Cad. 3/1 Kadıköy / İSTANBUL",
             "kiraci_ad_soyad": "Ali Demir",
+            "kiraci_adres": "Bahariye Cad. 40/2 Kadıköy / İSTANBUL",
+            "tasinmaz_adresi": "Bahariye Cad. 40/2 Kadıköy / İSTANBUL",
             "iban": "TR120006100511123456789012",
         },
     }

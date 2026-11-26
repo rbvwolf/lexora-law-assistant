@@ -3,6 +3,9 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import {
+  READY_TEMPLATE_IDS,
+  TEMERRUT_TEMPLATE_ID,
+  crossFieldErrors,
   fieldLabel,
   formatIban,
   formatRemaining,
@@ -14,6 +17,7 @@ import {
   parseFieldErrorMessage,
   parseNumber,
   prefillFromExtracted,
+  temerrutCrossErrors,
   toPayload,
   validateField,
   validateFields,
@@ -143,6 +147,31 @@ describe('kira artışı (TBK m. 344)', () => {
     assert.deepEqual(Object.keys(kiraArtisCrossErrors({ mevcut_kira_tutari: '10000', talep_edilen_kira_tutari: '14000', tufe_oran: '48' })), ['talep_edilen_kira_tutari'])
     assert.deepEqual(kiraArtisCrossErrors({ mevcut_kira_tutari: '10000', talep_edilen_kira_tutari: '20000', tufe_oran: '48' }), {})
     assert.ok(kiraArtisCrossErrors({ mevcut_kira_tutari: '10000', talep_edilen_kira_tutari: '20000', tufe_oran: '250' }).tufe_oran)
+  })
+})
+
+describe('temerrut (TBK m. 315)', () => {
+  const ok = { kira_tutari: '18.000', odenmeyen_toplam_tutar: '36000', odeme_suresi_gun: '30' }
+  it('accepts a valid payment period and amounts', () => {
+    assert.deepEqual(temerrutCrossErrors(ok), {})
+    assert.deepEqual(temerrutCrossErrors({ ...ok, odeme_suresi_gun: '365' }), {})
+  })
+  it('rejects periods below 30 days, fractions and over 365, like _check_temerrut', () => {
+    for (const sure of ['29', '10', '0', '30,5', '366']) {
+      assert.deepEqual(Object.keys(temerrutCrossErrors({ ...ok, odeme_suresi_gun: sure })), ['odeme_suresi_gun'], sure)
+    }
+  })
+  it('rejects non-positive amounts', () => {
+    assert.deepEqual(Object.keys(temerrutCrossErrors({ ...ok, kira_tutari: '0' })), ['kira_tutari'])
+    assert.deepEqual(Object.keys(temerrutCrossErrors({ ...ok, odenmeyen_toplam_tutar: '-5' })), ['odenmeyen_toplam_tutar'])
+  })
+  it('leaves blank or unparsable values to the per-field check', () => {
+    assert.deepEqual(temerrutCrossErrors({ odeme_suresi_gun: '', kira_tutari: 'abc' }), {})
+  })
+  it('is wired into crossFieldErrors and marked ready', () => {
+    assert.ok(crossFieldErrors(TEMERRUT_TEMPLATE_ID, { ...ok, odeme_suresi_gun: '15' }).odeme_suresi_gun)
+    assert.deepEqual(crossFieldErrors('tuketici_ayipli_mal_ihtarname', { odeme_suresi_gun: '15' }), {})
+    assert.ok(READY_TEMPLATE_IDS.includes(TEMERRUT_TEMPLATE_ID))
   })
 })
 
