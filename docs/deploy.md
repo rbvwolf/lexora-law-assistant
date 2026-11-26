@@ -61,6 +61,14 @@ cd backend && python scripts/measure_latency.py --base-url https://<backend> --d
 - Arayüzde bir soru sorun ve bir belge üretip .docx ile .pdf'i indirin.
 - Cevap süresi ölçümü `reports/latency_e2e.json` dosyasına yazılır. Ölçümden önce servisi yeniden başlatın: sunucu LLM cevaplarını bellekte önbellekler ve aynı senaryolar ikinci kez sorulursa cevaplar önbellekten gelir, ölçüm anlamsızlaşır.
 
+## Demo günü
+
+Groq ücretsiz katmanı bu model için günde 200.000 token veriyor; bu yaklaşık 70-90 soru-cevap demek ([reports/LATENCY_E2E_REPORT.md](../reports/LATENCY_E2E_REPORT.md)).
+
+- Demo gününde `run_eval.py` ve `measure_latency.py` çalıştırmayın; aynı kotayı harcarlar.
+- Demoda soracağınız soruları demodan kısa süre önce bir kez sorun. Sunucu cevapları bellekte önbelleklediği için aynı soru demoda anında ve kota harcamadan cevaplanır. Servis yeniden başlatılırsa önbellek sıfırlanır.
+- Limit aşılırsa kullanıcı askıda kalmaz: kısa beklemelerde sohbet ekranı geri sayımla otomatik tekrar dener, günlük limit dolduysa kaç dakika sonra tekrar denenebileceğini gösterir.
+
 ## Notlar
 
 - Üretilen belgeler konteynerin geçici diskinde tutulur ve 120 dakika sonra silinir (KVKK). Yeniden başlatmada da silinirler; kalıcı disk bağlanmamalıdır.

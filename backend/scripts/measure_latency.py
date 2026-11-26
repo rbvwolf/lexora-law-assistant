@@ -17,6 +17,7 @@ left out of the percentiles. Requests are spaced out (--delay) to stay inside Gr
 Usage (from backend/):
     python scripts/measure_latency.py
     python scripts/measure_latency.py --base-url https://lexora-backend.onrender.com --delay 5
+    python scripts/measure_latency.py --base-url http://localhost:8001 --delay 4 --client-retry
 """
 
 import argparse
@@ -40,6 +41,8 @@ PROJECT_ROOT = backend_root.parent
 CHAT_PATH = "/api/v1/chat/message"
 TARGET_P95_MS = 10_000
 WARMUP_QUERY = "Kira artış oranı en fazla ne kadar olabilir?"
+# frontend/src/lib/retry.js AUTO_RETRY_MAX_WAIT_SECONDS
+CLIENT_AUTO_RETRY_MAX_WAIT_S = 30
 
 
 def percentile(values: List[float], pct: float) -> float:
@@ -89,6 +92,7 @@ async def timed_request(client: httpx.AsyncClient, session_id: str, message: str
             "latency_ms": round(elapsed_ms, 1),
             "intent": body.get("intent"),
             "error_code": body.get("error_code"),
+            "retry_after_seconds": body.get("retry_after_seconds"),
         }
     except httpx.HTTPError as exc:
         return {
@@ -113,13 +117,30 @@ async def run(args: argparse.Namespace) -> Dict[str, Any]:
             for q in queries:
                 await asyncio.sleep(args.delay)
                 clear_llm_cache(in_process)
-                result = await timed_request(client, f"latency-{run_no}-{q['id']}", q["query"])
+                session_id = f"latency-{run_no}-{q['id']}"
+                result = await timed_request(client, session_id, q["query"])
+                retry_after = result.get("retry_after_seconds")
+                if (
+                    args.client_retry
+                    and result["error_code"] == "LLM_RATE_LIMITED"
+                    and retry_after
+                    and retry_after <= CLIENT_AUTO_RETRY_MAX_WAIT_S
+                ):
+                    # Same as the chat screen (frontend/src/lib/retry.js): wait once, resend, count the whole wait
+                    await asyncio.sleep(retry_after)
+                    second = await timed_request(client, session_id, q["query"])
+                    second["latency_ms"] = round(result["latency_ms"] + retry_after * 1000 + second["latency_ms"], 1)
+                    second["client_retried"] = True
+                    result = second
                 result.update({"id": q["id"], "run": run_no, "expected_intent": q["expected_intent"]})
                 samples.append(result)
                 print(f"[{run_no}] {q['id']}: {result['latency_ms']:.0f} ms  status={result['status_code']}  intent={result['intent']}")
 
     ok = [s["latency_ms"] for s in samples if s["status_code"] == 200]
     failed = [s for s in samples if s["status_code"] != 200]
+    # Time until the user saw any answer, including a fast 503 "busy, retry in N s"
+    answered = [s["latency_ms"] for s in samples if s["status_code"] is not None]
+    rate_limited = sum(1 for s in samples if s["error_code"] == "LLM_RATE_LIMITED")
     by_intent: Dict[str, List[float]] = {}
     for s in samples:
         if s["status_code"] == 200 and s["intent"]:
@@ -137,6 +158,8 @@ async def run(args: argparse.Namespace) -> Dict[str, Any]:
         "scenarios": len(queries),
         "runs": args.runs,
         "delay_s": args.delay,
+        "client_retry": args.client_retry,
+        "client_retried": sum(1 for s in samples if s.get("client_retried")),
         "cold_start_ms": cold["latency_ms"],
         "requests": len(samples),
         "succeeded": len(ok),
@@ -150,6 +173,8 @@ async def run(args: argparse.Namespace) -> Dict[str, Any]:
             "max": max(ok) if ok else None,
         },
         "p95_by_intent_ms": {k: percentile(v, 95) for k, v in sorted(by_intent.items())},
+        "rate_limited": rate_limited,
+        "all_responses_p95_ms": percentile(answered, 95) if answered else None,
         "target_p95_ms": TARGET_P95_MS,
         "passed": bool(ok) and not failed and p95 < TARGET_P95_MS,
         "samples": samples,
@@ -164,6 +189,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--runs", type=int, default=1, help="Passes over the scenario set (default: 1)")
     parser.add_argument("--delay", type=float, default=4.0, help="Seconds between requests (Groq free-tier rate limit)")
+    parser.add_argument(
+        "--client-retry",
+        action="store_true",
+        help="Behave like the chat screen: after 503 LLM_RATE_LIMITED wait retry_after_seconds once and resend "
+        "(latency then includes the wait)",
+    )
     parser.add_argument(
         "--out", type=Path, default=PROJECT_ROOT / "reports" / "latency_e2e.json", help="JSON report path"
     )
@@ -181,6 +212,8 @@ def main() -> None:
     print(f"requests: {report['requests']}  succeeded: {report['succeeded']}  failed: {report['failed']}")
     if lat["p95"] is not None:
         print(f"p50: {lat['p50']:.0f} ms  p95: {lat['p95']:.0f} ms  max: {lat['max']:.0f} ms  (target p95 < {TARGET_P95_MS} ms)")
+    if report["rate_limited"]:
+        print(f"rate limited (503): {report['rate_limited']}  p95 of all responses incl. 503: {report['all_responses_p95_ms']:.0f} ms")
     print(f"result: {'PASS' if report['passed'] else 'FAIL'}  -> {args.out}")
     sys.exit(0 if report["passed"] else 1)
 

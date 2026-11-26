@@ -1,0 +1,424 @@
+{
+  "measured_at": "2026-11-26T19:08:34+00:00",
+  "mode": "remote",
+  "target": "http://localhost:8001",
+  "model": null,
+  "embedding_model": null,
+  "scenarios": 30,
+  "runs": 1,
+  "delay_s": 4.0,
+  "cold_start_ms": 5190.0,
+  "requests": 30,
+  "succeeded": 10,
+  "failed": 20,
+  "failures": [
+    {
+      "id": "EVAL-004",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-006",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-007",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-008",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-010",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-011",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-012",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-014",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-017",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-018",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-019",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-020",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-021",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-022",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-023",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-024",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-026",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-027",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-028",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    },
+    {
+      "id": "EVAL-030",
+      "run": 1,
+      "status_code": 503,
+      "error_code": "LLM_RATE_LIMITED"
+    }
+  ],
+  "latency_ms": {
+    "min": 253.1,
+    "p50": 2668.5,
+    "mean": 3062.4,
+    "p95": 5720.2,
+    "max": 5720.2
+  },
+  "p95_by_intent_ms": {
+    "document_generation": 5376.0,
+    "out_of_scope": 338.3,
+    "question_answering": 5720.2
+  },
+  "rate_limited": 20,
+  "all_responses_p95_ms": 5376.0,
+  "target_p95_ms": 10000,
+  "passed": false,
+  "samples": [
+    {
+      "status_code": 200,
+      "latency_ms": 1094.6,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-001",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 2668.5,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-002",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 2005.7,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-003",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 221.8,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-004",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 4282.9,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-005",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 189.2,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-006",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 183.1,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-007",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 197.2,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-008",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 3910.4,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-009",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 424.6,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-010",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 368.1,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-011",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 194.5,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-012",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 5376.0,
+      "intent": "document_generation",
+      "error_code": null,
+      "id": "EVAL-013",
+      "run": 1,
+      "expected_intent": "document_generation"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 431.3,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-014",
+      "run": 1,
+      "expected_intent": "document_generation"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 253.1,
+      "intent": "out_of_scope",
+      "error_code": null,
+      "id": "EVAL-015",
+      "run": 1,
+      "expected_intent": "out_of_scope"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 5720.2,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-016",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 191.4,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-017",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 208.5,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-018",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 222.4,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-019",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 228.9,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-020",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 1391.3,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-021",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 217.1,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-022",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 235.3,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-023",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 1640.6,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-024",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 4974.0,
+      "intent": "question_answering",
+      "error_code": null,
+      "id": "EVAL-025",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 552.5,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-026",
+      "run": 1,
+      "expected_intent": "question_answering"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 248.3,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-027",
+      "run": 1,
+      "expected_intent": "document_generation"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 247.0,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-028",
+      "run": 1,
+      "expected_intent": "document_generation"
+    },
+    {
+      "status_code": 200,
+      "latency_ms": 338.3,
+      "intent": "out_of_scope",
+      "error_code": null,
+      "id": "EVAL-029",
+      "run": 1,
+      "expected_intent": "out_of_scope"
+    },
+    {
+      "status_code": 503,
+      "latency_ms": 231.4,
+      "intent": null,
+      "error_code": "LLM_RATE_LIMITED",
+      "id": "EVAL-030",
+      "run": 1,
+      "expected_intent": "out_of_scope"
+    }
+  ]
+}
