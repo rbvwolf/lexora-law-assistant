@@ -16,6 +16,7 @@ KVKK / AGENTS.md compliance:
     - LEGAL_DISCLAIMER injected in every response.
 """
 
+import asyncio
 from collections import OrderedDict
 import hashlib
 import json
@@ -83,19 +84,100 @@ def _cache_key(
 _groq_client = None
 
 
+class LLMRateLimitedError(Exception):
+    """Groq answered 429 and the wait it asked for does not fit the per-request budget."""
+
+    def __init__(self, retry_after_seconds: Optional[float] = None) -> None:
+        super().__init__("Groq rate limit exceeded")
+        self.retry_after_seconds = retry_after_seconds
+
+
+class LLMUnavailableError(Exception):
+    """Groq could not be reached, timed out, or kept answering 5xx."""
+
+
 def _get_groq_client():
-    """Lazily initialise and return the Groq AsyncClient singleton."""
+    """Lazily initialise and return the Groq AsyncClient singleton.
+
+    The SDK's own retries are off (max_retries=0): it would sleep for the full Retry-After
+    (~25 s on the free tier) inside the user's request. _call_groq retries under a budget instead.
+    """
     global _groq_client
     if _groq_client is None:
         from groq import AsyncGroq  # type: ignore
 
-        _groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+        _groq_client = AsyncGroq(
+            api_key=settings.GROQ_API_KEY,
+            max_retries=0,
+            timeout=settings.GROQ_TIMEOUT_SECONDS,
+        )
     return _groq_client
+
+
+def _retry_after_seconds(exc: Exception) -> Optional[float]:
+    """Seconds from the 429's retry-after-ms / retry-after headers, if present and numeric."""
+    headers = getattr(getattr(exc, "response", None), "headers", None)
+    if not headers:
+        return None
+    for name, scale in (("retry-after-ms", 0.001), ("retry-after", 1.0)):
+        raw = headers.get(name)
+        if raw is None:
+            continue
+        try:
+            value = float(raw) * scale
+        except (TypeError, ValueError):
+            continue
+        if value >= 0 and value == value:  # not NaN
+            return value
+    return None
+
+
+# Pause before retrying a transient 5xx / connection error (not a 429)
+_TRANSIENT_RETRY_DELAY_SECONDS = 0.5
+
+# Indirection so tests can record waits without sleeping
+_sleep = asyncio.sleep
 
 
 # ---------------------------------------------------------------------------
 # Low-level cached Groq caller
 # ---------------------------------------------------------------------------
+async def _create_with_retries(client: Any, kwargs: Dict[str, Any]) -> Any:
+    """chat.completions.create with bounded retries.
+
+    429: retried only while the summed Retry-After stays within GROQ_RATE_LIMIT_MAX_WAIT_SECONDS,
+    otherwise LLMRateLimitedError (the client is told when to come back).
+    Timeout: LLMUnavailableError at once (retrying would double an already long wait).
+    5xx / connection error: retried after a short pause, then LLMUnavailableError.
+    """
+    from groq import APIConnectionError, APITimeoutError, InternalServerError, RateLimitError  # type: ignore
+
+    waited = 0.0
+    retries = 0
+    while True:
+        try:
+            return await client.chat.completions.create(**kwargs)
+        except RateLimitError as exc:
+            retry_after = _retry_after_seconds(exc)
+            wait = retry_after if retry_after is not None else 1.0
+            if retries >= settings.GROQ_RATE_LIMIT_MAX_RETRIES or waited + wait > settings.GROQ_RATE_LIMIT_MAX_WAIT_SECONDS:
+                logger.warning("Groq rate limited; retry_after=%s s, giving up after %d retries", retry_after, retries)
+                raise LLMRateLimitedError(retry_after) from exc
+            logger.info("Groq rate limited; waiting %.1f s before retry %d", wait, retries + 1)
+            retries += 1
+            waited += wait
+            await _sleep(wait)
+        except APITimeoutError as exc:
+            logger.warning("Groq request timed out after %.0f s", settings.GROQ_TIMEOUT_SECONDS)
+            raise LLMUnavailableError() from exc
+        except (APIConnectionError, InternalServerError) as exc:
+            if retries >= settings.GROQ_RATE_LIMIT_MAX_RETRIES:
+                logger.warning("Groq unavailable: %s", type(exc).__name__)
+                raise LLMUnavailableError() from exc
+            retries += 1
+            await _sleep(_TRANSIENT_RETRY_DELAY_SECONDS)
+
+
 async def _call_groq(
     messages: List[Dict[str, str]],
     *,
@@ -129,7 +211,7 @@ async def _call_groq(
     if response_format:
         kwargs["response_format"] = response_format
 
-    completion = await client.chat.completions.create(**kwargs)
+    completion = await _create_with_retries(client, kwargs)
     if not completion.choices:
         logger.warning("Groq completion returned empty choices; model=%s", model)
         return ""

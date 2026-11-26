@@ -22,6 +22,25 @@ class Settings(BaseSettings):
         description="Active LLM model name, never hardcoded in service code",
     )
 
+    # Groq rate limits: a 429 whose Retry-After fits the wait budget is retried inside the request;
+    # anything longer is returned to the client at once as 503 LLM_RATE_LIMITED (with Retry-After)
+    # instead of keeping the user waiting ~25 s per retry. Eval scripts raise these limits.
+    GROQ_RATE_LIMIT_MAX_WAIT_SECONDS: float = Field(
+        default=4.0,
+        ge=0,
+        description="Total seconds one Groq call may wait on 429 Retry-After before giving up",
+    )
+    GROQ_RATE_LIMIT_MAX_RETRIES: int = Field(
+        default=2,
+        ge=0,
+        description="Retries of one Groq call after 429 or a transient Groq error",
+    )
+    GROQ_TIMEOUT_SECONDS: float = Field(
+        default=20.0,
+        gt=0,
+        description="Timeout of a single Groq HTTP request",
+    )
+
     # Vector DB & Embeddings (ChromaDB)
     CHROMA_PERSIST_DIR: str = Field(
         default="./chroma_db",

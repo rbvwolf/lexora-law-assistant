@@ -7,6 +7,7 @@ import {
 import { ApiError, sendChatMessage } from '../lib/api';
 import { DISCLAIMER_TEXT } from '../lib/constants';
 import { fieldLabel } from '../lib/fields';
+import { autoRetryDelay, countdown } from '../lib/retry';
 import { useTemplates } from '../lib/useTemplates';
 import RichText from './common/RichText';
 
@@ -154,6 +155,8 @@ const DashboardDanisAI = () => {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Seconds left before the automatic retry after a rate limit; null when not waiting
+  const [retryCountdown, setRetryCountdown] = useState(null);
   const nextIdRef = useRef(0);
   const abortRef = useRef(null);
   const bottomRef = useRef(null);
@@ -194,7 +197,19 @@ const DashboardDanisAI = () => {
     setIsLoading(true);
 
     try {
-      const response = await sendChatMessage(sessionId, text, { signal: controller.signal, timeoutMs: 60000 });
+      let response;
+      // A Groq rate limit (503 LLM_RATE_LIMITED) is waited out once with a visible countdown
+      for (let retries = 0; ; retries += 1) {
+        try {
+          response = await sendChatMessage(sessionId, text, { signal: controller.signal, timeoutMs: 60000 });
+          break;
+        } catch (err) {
+          const delay = autoRetryDelay(err, retries);
+          if (delay === null) throw err;
+          await countdown(delay, { signal: controller.signal, onTick: setRetryCountdown });
+          setRetryCountdown(null);
+        }
+      }
       const assistantMessage = { id: nextIdRef.current++, role: 'assistant', response };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
@@ -207,6 +222,7 @@ const DashboardDanisAI = () => {
       if (abortRef.current === controller) {
         abortRef.current = null;
         setIsLoading(false);
+        setRetryCountdown(null);
       }
     }
   };
@@ -223,6 +239,7 @@ const DashboardDanisAI = () => {
     abortRef.current?.abort();
     abortRef.current = null;
     setIsLoading(false);
+    setRetryCountdown(null);
     setMessages([]);
     setInput('');
     setError(null);
@@ -293,7 +310,11 @@ const DashboardDanisAI = () => {
              <div className="flex justify-start" aria-live="polite">
                <div className="max-w-[90%]">
                  <AssistantHeader />
-                 <div className="bg-white border border-slate-200 p-5 rounded-2xl rounded-tl-none shadow-sm text-sm text-slate-500 animate-pulse">Danış AI ilgili kanun maddelerini inceliyor...</div>
+                 {retryCountdown === null ? (
+                   <div className="bg-white border border-slate-200 p-5 rounded-2xl rounded-tl-none shadow-sm text-sm text-slate-500 animate-pulse">Danış AI ilgili kanun maddelerini inceliyor...</div>
+                 ) : (
+                   <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl rounded-tl-none shadow-sm text-sm text-amber-800">Şu anda yoğunluk var. Sorunuz {retryCountdown} saniye içinde otomatik olarak tekrar gönderilecek.</div>
+                 )}
                </div>
              </div>
            )}
