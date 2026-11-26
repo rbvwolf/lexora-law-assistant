@@ -1,0 +1,34 @@
+# Render Blueprint for the backend (frontend goes to Vercel, see frontend/vercel.json).
+# Secrets are marked sync: false: Render asks for them when the Blueprint is created; they are
+# never committed. See docs/deploy.md.
+services:
+  - type: web
+    name: lexora-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    # Measured: 437 MB idle, 817 MB after the first chat request. Free/starter (512 MB) run out of memory.
+    plan: standard
+    region: frankfurt
+    healthCheckPath: /api/v1/health
+    autoDeploy: false
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DOCUMENT_TTL_MINUTES
+        value: "120"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL_NAME
+        sync: false
+      # JSON list with the exact Vercel origin, e.g. ["https://lexora.vercel.app"]
+      - key: CORS_ORIGINS
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_HOST
+        value: https://cloud.langfuse.com
