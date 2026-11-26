@@ -21,7 +21,11 @@ export const CLIENT_ERROR_CODES = Object.freeze({
   NETWORK_ERROR: 'NETWORK_ERROR', // backend unreachable or blocked by CORS
   HTTP_ERROR: 'HTTP_ERROR', // non-2xx without a JSON { error_code, message } body
   INVALID_RESPONSE: 'INVALID_RESPONSE', // 2xx whose body is not JSON
+  TIMEOUT: 'TIMEOUT', // no answer within the request timeout
 })
+
+/** Default per-request timeout. The target is p95 < 10 s; this leaves room for a cold start. */
+export const DEFAULT_TIMEOUT_MS = 30000
 
 // ---------------------------------------------------------------------------
 // Types (copied from backend/app/schemas; keep in sync)
@@ -79,8 +83,16 @@ export const CLIENT_ERROR_CODES = Object.freeze({
  */
 
 /**
+ * @typedef {Object} HealthResponse
+ * @property {string} status "healthy" | "degraded"
+ * @property {string} environment
+ * @property {Object<string, string>} dependencies
+ */
+
+/**
  * @typedef {Object} RequestOptions
- * @property {AbortSignal} [signal] Lets the caller cancel or time out the request
+ * @property {AbortSignal} [signal] Lets the caller cancel the request
+ * @property {number} [timeoutMs] Overrides DEFAULT_TIMEOUT_MS; 0 disables the timeout
  */
 
 // ---------------------------------------------------------------------------
@@ -151,13 +163,23 @@ async function readJson(response) {
 
 /**
  * @param {string} path Path under the base URL, e.g. "/api/v1/chat/message"
- * @param {{ method?: string, body?: unknown, signal?: AbortSignal }} [options]
+ * @param {{ method?: string, body?: unknown, signal?: AbortSignal, timeoutMs?: number }} [options]
  */
-async function request(path, { method = 'GET', body, signal } = {}) {
+async function request(path, { method = 'GET', body, signal, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const headers = { Accept: 'application/json' }
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
+
+  // One controller aborts the fetch for both reasons; timedOut tells them apart afterwards
+  const controller = new AbortController()
+  let timedOut = false
+  const onCallerAbort = () => controller.abort()
+  if (signal?.aborted) controller.abort()
+  else signal?.addEventListener('abort', onCallerAbort, { once: true })
+  const timer = timeoutMs > 0
+    ? setTimeout(() => { timedOut = true; controller.abort() }, timeoutMs)
+    : undefined
 
   let response
   try {
@@ -167,13 +189,19 @@ async function request(path, { method = 'GET', body, signal } = {}) {
       body: body === undefined ? undefined : JSON.stringify(body),
       // Backend sets allow_credentials=False; no cookies are ever sent
       credentials: 'omit',
-      signal,
+      signal: controller.signal,
     })
   } catch (error) {
+    if (timedOut) {
+      throw new ApiError(0, CLIENT_ERROR_CODES.TIMEOUT, 'Sunucu zamanında cevap vermedi. Lütfen tekrar deneyin.')
+    }
     if (error?.name === 'AbortError') {
       throw error // cancelled by the caller: let it tell this apart from a failure
     }
     throw new ApiError(0, CLIENT_ERROR_CODES.NETWORK_ERROR, 'Sunucuya ulaşılamadı.')
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', onCallerAbort)
   }
 
   const data = await readJson(response)
@@ -201,11 +229,12 @@ async function request(path, { method = 'GET', body, signal } = {}) {
  * @param {RequestOptions} [options]
  * @returns {Promise<ChatResponse>}
  */
-export function sendChatMessage(sessionId, message, { signal } = {}) {
+export function sendChatMessage(sessionId, message, { signal, timeoutMs } = {}) {
   return request('/api/v1/chat/message', {
     method: 'POST',
     body: { session_id: sessionId, message },
     signal,
+    timeoutMs,
   })
 }
 
@@ -214,8 +243,17 @@ export function sendChatMessage(sessionId, message, { signal } = {}) {
  * @param {RequestOptions} [options]
  * @returns {Promise<TemplateListResponse>}
  */
-export function listTemplates({ signal } = {}) {
-  return request('/api/v1/documents/templates', { signal })
+export function listTemplates({ signal, timeoutMs } = {}) {
+  return request('/api/v1/documents/templates', { signal, timeoutMs })
+}
+
+/**
+ * GET /api/v1/health
+ * @param {RequestOptions} [options]
+ * @returns {Promise<HealthResponse>}
+ */
+export function getHealth({ signal, timeoutMs = 5000 } = {}) {
+  return request('/api/v1/health', { signal, timeoutMs })
 }
 
 /**
@@ -227,10 +265,11 @@ export function listTemplates({ signal } = {}) {
  * @param {RequestOptions} [options]
  * @returns {Promise<DocumentGenerateResponse>}
  */
-export function generateDocument(templateId, caseParams, pii, { signal } = {}) {
+export function generateDocument(templateId, caseParams, pii, { signal, timeoutMs } = {}) {
   return request('/api/v1/documents/generate', {
     method: 'POST',
     body: { template_id: templateId, case_params: caseParams, pii },
     signal,
+    timeoutMs,
   })
 }
