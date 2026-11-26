@@ -8,6 +8,7 @@ import {
   CLIENT_ERROR_CODES,
   downloadUrl,
   generateDocument,
+  getHealth,
   listTemplates,
   resolveApiBaseUrl,
   sendChatMessage,
@@ -132,11 +133,23 @@ describe('requests', () => {
     })
   })
 
-  it('passes the caller signal through', async () => {
+  it('caller signal aborts the fetch', async () => {
     const calls = stubFetch(() => jsonResponse(200, { templates: [] }))
     const controller = new AbortController()
     await listTemplates({ signal: controller.signal })
-    assert.equal(calls[0].init.signal, controller.signal)
+    assert.equal(calls[0].init.signal.aborted, false)
+    const pending = stubFetch(() => new Promise(() => {}))
+    const promise = listTemplates({ signal: controller.signal, timeoutMs: 0 })
+    controller.abort()
+    assert.equal(pending[0].init.signal.aborted, true)
+    promise.catch(() => {})
+  })
+
+  it('GET /api/v1/health', async () => {
+    const calls = stubFetch(() => jsonResponse(200, { status: 'healthy', environment: 'development', dependencies: {} }))
+    const res = await getHealth()
+    assert.equal(calls[0].url, `${API_BASE_URL}/api/v1/health`)
+    assert.equal(res.status, 'healthy')
   })
 })
 
@@ -198,5 +211,12 @@ describe('errors', () => {
       assert.ok(!(error instanceof ApiError))
       return true
     })
+  })
+
+  it('no answer within timeoutMs becomes TIMEOUT', async () => {
+    globalThis.fetch = (_url, init) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+    })
+    await assert.rejects(listTemplates({ timeoutMs: 20 }), { status: 0, errorCode: CLIENT_ERROR_CODES.TIMEOUT })
   })
 })
