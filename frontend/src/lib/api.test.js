@@ -166,6 +166,16 @@ describe('errors', () => {
     })
   })
 
+  it('503 LLM_RATE_LIMITED carries retry_after_seconds', async () => {
+    stubFetch(() => jsonResponse(503, { error_code: 'LLM_RATE_LIMITED', message: 'Şu anda çok yoğunuz.', retry_after_seconds: 24 }))
+    await assert.rejects(sendChatMessage('s', 'm'), { status: 503, errorCode: 'LLM_RATE_LIMITED', retryAfterSeconds: 24 })
+  })
+
+  it('errors without retry_after_seconds have retryAfterSeconds null', async () => {
+    stubFetch(() => jsonResponse(503, { error_code: 'LLM_UNAVAILABLE', message: 'x' }))
+    await assert.rejects(sendChatMessage('s', 'm'), { errorCode: 'LLM_UNAVAILABLE', retryAfterSeconds: null })
+  })
+
   it('400 / 404 / 500 keep their backend codes', async () => {
     for (const [status, code] of [
       [400, 'EMPTY_MESSAGE'],

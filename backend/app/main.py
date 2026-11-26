@@ -58,12 +58,15 @@ app.add_middleware(
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
     """Return standard JSON error format per AGENTS.md Section 6."""
+    # Keep headers such as Retry-After (503 LLM_RATE_LIMITED)
+    headers = getattr(exc, "headers", None)
     if isinstance(exc.detail, dict) and "error_code" in exc.detail:
-        return JSONResponse(status_code=exc.status_code, content=exc.detail)
+        return JSONResponse(status_code=exc.status_code, content=exc.detail, headers=headers)
 
     return JSONResponse(
         status_code=exc.status_code,
         content={"error_code": "HTTP_ERROR", "message": str(exc.detail)},
+        headers=headers,
     )
 
 

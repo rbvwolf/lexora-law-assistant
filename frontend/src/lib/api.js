@@ -24,6 +24,9 @@ export const CLIENT_ERROR_CODES = Object.freeze({
   TIMEOUT: 'TIMEOUT', // no answer within the request timeout
 })
 
+/** Backend error code for a Groq rate limit (503 + retry_after_seconds). */
+export const LLM_RATE_LIMITED = 'LLM_RATE_LIMITED'
+
 /** Default per-request timeout. The target is p95 < 10 s; this leaves room for a cold start. */
 export const DEFAULT_TIMEOUT_MS = 30000
 
@@ -144,12 +147,14 @@ export class ApiError extends Error {
    * @param {number} status HTTP status, or 0 when no response was received
    * @param {string} errorCode Backend error_code, or one of CLIENT_ERROR_CODES
    * @param {string} message Backend message (contains no PII by backend contract)
+   * @param {number | null} [retryAfterSeconds] Set on 503 LLM_RATE_LIMITED: when a retry can succeed
    */
-  constructor(status, errorCode, message) {
+  constructor(status, errorCode, message, retryAfterSeconds = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.errorCode = errorCode
+    this.retryAfterSeconds = retryAfterSeconds
   }
 }
 
@@ -208,7 +213,13 @@ async function request(path, { method = 'GET', body, signal, timeoutMs = DEFAULT
 
   if (!response.ok) {
     if (data && typeof data.error_code === 'string') {
-      throw new ApiError(response.status, data.error_code, String(data.message ?? ''))
+      const retryAfter = Number(data.retry_after_seconds)
+      throw new ApiError(
+        response.status,
+        data.error_code,
+        String(data.message ?? ''),
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null,
+      )
     }
     throw new ApiError(response.status, CLIENT_ERROR_CODES.HTTP_ERROR, `Beklenmeyen sunucu cevabı (HTTP ${response.status}).`)
   }

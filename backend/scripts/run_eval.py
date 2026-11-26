@@ -587,6 +587,14 @@ def run_evaluation(
     return report
 
 
+def _be_patient_with_rate_limits() -> None:
+    """An eval round should wait out Groq 429s, not fail fast like a user request does."""
+    from app.core.config import settings
+
+    settings.GROQ_RATE_LIMIT_MAX_WAIT_SECONDS = 600.0
+    settings.GROQ_RATE_LIMIT_MAX_RETRIES = 10
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Lexora Evaluation CLI")
     parser.add_argument(
@@ -637,6 +645,7 @@ def main() -> None:
 
     args = parser.parse_args()
     eval_file = Path(args.eval_file)
+    _be_patient_with_rate_limits()
 
     try:
         run_evaluation(
