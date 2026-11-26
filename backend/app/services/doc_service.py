@@ -37,6 +37,11 @@ IBAN_TR_RE = re.compile(r"^TR\d{24}$")
 KIRA_ARTIS_TEMPLATE_ID = "kira_artis_itiraz_ihtarname"
 TUFE_ORAN_MAX = Decimal("200")
 
+TEMERRUT_TEMPLATE_ID = "kira_ihtarname_temerrut"
+# TBK m. 315/2: at least 30 days for housing and roofed workplace leases; upper bound is a sanity limit
+ODEME_SURESI_MIN_GUN = 30
+ODEME_SURESI_MAX_GUN = 365
+
 # How often the background task deletes expired files (see app.main lifespan)
 DOCUMENT_SWEEP_INTERVAL = timedelta(minutes=10)
 DOWNLOADABLE_SUFFIXES = (".docx", ".pdf")
@@ -138,14 +143,68 @@ def _kira_artis_context(case_params: Dict[str, Any], pii: Dict[str, str]) -> Dic
     }
 
 
+def _check_temerrut(case_params: Dict[str, Any]) -> List[str]:
+    """Cross-field rules for the rent default notice. Returns invalid field NAMES only."""
+    invalid = []
+    for name in ("kira_tutari", "odenmeyen_toplam_tutar"):
+        if _to_decimal(case_params[name]) <= 0:
+            invalid.append(name)
+    sure = _to_decimal(case_params["odeme_suresi_gun"])
+    if sure != sure.to_integral_value() or not ODEME_SURESI_MIN_GUN <= sure <= ODEME_SURESI_MAX_GUN:
+        invalid.append("odeme_suresi_gun")
+    if not _join_months(case_params["gecikilen_aylar"]):
+        invalid.append("gecikilen_aylar")  # e.g. an empty list from the LLM
+    return invalid
+
+
+def _format_iban(value: str) -> str:
+    """'TR12 0006...' or 'tr120006...' -> 'TR12 0006 1005 ...' (groups of four)."""
+    compact = re.sub(r"\s+", "", value).upper()
+    return " ".join(compact[i : i + 4] for i in range(0, len(compact), 4))
+
+
+def _join_months(value: Any) -> str:
+    """The LLM extracts months as a list; the form sends one string. Both read as 'Eylül 2026, Ekim 2026'."""
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(v).strip() for v in value if str(v).strip())
+    return str(value).strip()
+
+
+def _temerrut_context(case_params: Dict[str, Any], pii: Dict[str, str]) -> Dict[str, str]:
+    """Render context for the rent default notice (TBK m. 315). Keys must match the .docx tags exactly."""
+    sure = int(_to_decimal(case_params["odeme_suresi_gun"]))
+    return {
+        "noter_ili": str(case_params["noter_ili"]).strip(),
+        "kira_baslangic_tarihi": _format_tr_date(case_params["kira_baslangic_tarihi"]),
+        "kira_tutari": _format_tr_number(_to_decimal(case_params["kira_tutari"])),
+        "gecikilen_aylar": _join_months(case_params["gecikilen_aylar"]),
+        "odenmeyen_toplam_tutar": _format_tr_number(_to_decimal(case_params["odenmeyen_toplam_tutar"])),
+        "odeme_suresi_gun": str(sure),
+        "belge_tarihi": date.today().strftime("%d.%m.%Y"),
+        "kiraya_veren_ad_soyad": pii["kiraya_veren_ad_soyad"],
+        "kiraya_veren_tc_ibare": _tc_ibare(pii.get("kiraya_veren_tc")),
+        "kiraya_veren_adres": pii["kiraya_veren_adres"],
+        "kiraci_ad_soyad": pii["kiraci_ad_soyad"],
+        "kiraci_tc_ibare": _tc_ibare(pii.get("kiraci_tc")),
+        "kiraci_adres": pii["kiraci_adres"],
+        "tasinmaz_adresi": pii["tasinmaz_adresi"],
+        "iban": _format_iban(pii["iban"]),
+    }
+
+
 # Per-template cross-field rules (run only when the involved fields passed the basic checks)
 _CROSS_FIELD_RULES: Dict[str, Tuple[Tuple[str, ...], Callable[[Dict[str, Any]], List[str]]]] = {
     KIRA_ARTIS_TEMPLATE_ID: (("mevcut_kira_tutari", "talep_edilen_kira_tutari", "tufe_oran"), _check_kira_artis),
+    TEMERRUT_TEMPLATE_ID: (
+        ("kira_tutari", "odenmeyen_toplam_tutar", "odeme_suresi_gun", "gecikilen_aylar"),
+        _check_temerrut,
+    ),
 }
 
 # Templates rendered from data/templates/<template_id>.docx; others still produce mock files
 _RENDER_CONTEXT_BUILDERS: Dict[str, Callable[[Dict[str, Any], Dict[str, str]], Dict[str, str]]] = {
     KIRA_ARTIS_TEMPLATE_ID: _kira_artis_context,
+    TEMERRUT_TEMPLATE_ID: _temerrut_context,
 }
 
 
@@ -182,22 +241,43 @@ class DocService:
 
     def __init__(self):
         self.templates: Dict[str, TemplateSchema] = {
-            "kira_ihtarname_temerrut": TemplateSchema(
-                template_id="kira_ihtarname_temerrut",
+            TEMERRUT_TEMPLATE_ID: TemplateSchema(
+                template_id=TEMERRUT_TEMPLATE_ID,
                 title="Kira Bedelinin Ödenmemesi Nedeniyle Temerrüt İhtarnamesi",
                 domain="Kira Hukuku",
-                description="Kiracının vadesi gelen kira bedellerini ödememesi halinde TBK m. 315 uyarınca 30 günlük ödeme süresi tanınması ve tahliye ihtarı.",
+                description=(
+                    "Kiracının muaccel kira bedellerini ödememesi halinde kiraya verenin TBK m. 315 uyarınca "
+                    "en az 30 günlük ödeme süresi vererek, süre içinde ödenmezse sözleşmeyi feshedeceğini "
+                    "bildirmesi. Konut ve çatılı işyeri kiraları içindir, hukukçu doğrulaması gerekir."
+                ),
                 case_param_fields=[
+                    TemplateFieldSchema(field_name="kira_baslangic_tarihi", label="Kira Sözleşmesi Başlangıç Tarihi", field_type="date", required=True),
                     TemplateFieldSchema(field_name="kira_tutari", label="Aylık Kira Bedeli (TL)", field_type="number", required=True),
-                    TemplateFieldSchema(field_name="gecikilen_aylar", label="Ödenmeyen Aylar", field_type="string", required=True),
-                    TemplateFieldSchema(field_name="odeme_suresi_gun", label="Ödeme İçin Verilen Süre (Gün)", field_type="number", required=True),
-                    TemplateFieldSchema(field_name="tasinmaz_adresi", label="Kiralanan Taşınmaz Adresi", field_type="string", required=True),
+                    TemplateFieldSchema(
+                        field_name="gecikilen_aylar",
+                        label="Ödenmeyen Aylar",
+                        field_type="string",
+                        required=True,
+                        description="Örnek: Eylül 2026, Ekim 2026",
+                    ),
+                    TemplateFieldSchema(field_name="odenmeyen_toplam_tutar", label="Ödenmeyen Toplam Kira Bedeli (TL)", field_type="number", required=True),
+                    TemplateFieldSchema(
+                        field_name="odeme_suresi_gun",
+                        label="Ödeme İçin Verilen Süre (Gün)",
+                        field_type="number",
+                        required=True,
+                        description="TBK m. 315 uyarınca konut ve çatılı işyeri kiralarında en az 30 gün.",
+                    ),
+                    TemplateFieldSchema(field_name="noter_ili", label="İhtarnamenin Gönderileceği Noterlik (İl)", field_type="string", required=True),
                 ],
                 pii_fields=[
-                    TemplateFieldSchema(field_name="kiraya_veren_ad_soyad", label="Kiraya Veren Adı Soyadı", field_type="string", required=True),
-                    TemplateFieldSchema(field_name="kiraya_veren_tc", label="Kiraya Veren TC Kimlik No", field_type="tc_id", required=True),
+                    TemplateFieldSchema(field_name="kiraya_veren_ad_soyad", label="Kiraya Veren Adı Soyadı / Unvanı", field_type="string", required=True),
+                    TemplateFieldSchema(field_name="kiraya_veren_tc", label="Kiraya Veren TC Kimlik No", field_type="tc_id", required=False),
+                    TemplateFieldSchema(field_name="kiraya_veren_adres", label="Kiraya Veren Tebligat Adresi", field_type="string", required=True),
                     TemplateFieldSchema(field_name="kiraci_ad_soyad", label="Kiracı Adı Soyadı", field_type="string", required=True),
                     TemplateFieldSchema(field_name="kiraci_tc", label="Kiracı TC Kimlik No", field_type="tc_id", required=False),
+                    TemplateFieldSchema(field_name="kiraci_adres", label="Kiracı Tebligat Adresi", field_type="string", required=True),
+                    TemplateFieldSchema(field_name="tasinmaz_adresi", label="Kiralanan Taşınmaz Adresi", field_type="string", required=True),
                     TemplateFieldSchema(field_name="iban", label="Kiranın Yatırılacağı IBAN", field_type="iban", required=True),
                 ],
             ),

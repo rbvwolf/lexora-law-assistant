@@ -23,7 +23,12 @@ from pypdf import PdfReader
 from app.core.config import Settings
 from app.services import doc_service as doc_service_module
 from app.services.doc_layouts import FOOTER_TEXT, get_layout
-from app.services.doc_service import KIRA_ARTIS_TEMPLATE_ID, DocumentAssetMissingError, doc_service
+from app.services.doc_service import (
+    KIRA_ARTIS_TEMPLATE_ID,
+    TEMERRUT_TEMPLATE_ID,
+    DocumentAssetMissingError,
+    doc_service,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -213,23 +218,23 @@ async def test_file_names_are_random_and_pii_free(temp_storage):
 
 @pytest.mark.asyncio
 async def test_mock_files_do_not_contain_pii(temp_storage):
+    # tuketici_ayipli_mal_ihtarname is the template still served as a placeholder
     case_params = {
-        "kira_tutari": 18000,
-        "gecikilen_aylar": "Eylül-Ekim 2026",
-        "odeme_suresi_gun": 30,
-        "tasinmaz_adresi": "Kadıköy / İstanbul",
+        "urun_adi": "Buzdolabı Model X",
+        "fatura_tarihi": "2026-09-15",
+        "ayipli_durum_ozeti": "Soğutmuyor",
+        "secimlik_hak": "Bedel İadesi",
     }
     pii = {
-        "kiraya_veren_ad_soyad": "Mehmet Yılmaz",
-        "kiraya_veren_tc": "11111111111",
-        "kiraci_ad_soyad": "Ali Demir",
-        "iban": "TR120006100511123456789012",
+        "tuketici_ad_soyad": "Ayşe Kaya",
+        "tuketici_tc": "22222222222",
+        "satici_unvan": "Örnek Elektronik A.Ş.",
     }
-    file_id, *_ = await _generate(case_params, pii, template_id="kira_ihtarname_temerrut")
+    file_id, *_ = await _generate(case_params, pii, template_id="tuketici_ayipli_mal_ihtarname")
     for suffix in (".docx", ".pdf"):
         content = (temp_storage / f"{file_id}{suffix}").read_text(encoding="utf-8")
-        assert "kira_ihtarname_temerrut" in content
-        for value in list(pii.values()) + ["Kadıköy", "18000"]:
+        assert "tuketici_ayipli_mal_ihtarname" in content
+        for value in list(pii.values()) + ["Buzdolabı", "Soğutmuyor"]:
             assert value not in content
 
 
@@ -684,3 +689,176 @@ def test_ttl_configurable_via_env(monkeypatch):
 
 def test_default_ttl_is_two_hours():
     assert Settings.model_fields["DOCUMENT_TTL_MINUTES"].default == 120
+
+
+# ---------------------------------------------------------------------------
+# kira_ihtarname_temerrut (TBK m. 315)
+# ---------------------------------------------------------------------------
+
+
+def _temerrut_case_params():
+    return {
+        "kira_baslangic_tarihi": "2024-03-01",
+        "kira_tutari": 18000,
+        "gecikilen_aylar": "Eylül 2026, Ekim 2026",
+        "odenmeyen_toplam_tutar": 36000,
+        "odeme_suresi_gun": 30,
+        "noter_ili": "İstanbul",
+    }
+
+
+def _temerrut_pii():
+    return {
+        "kiraya_veren_ad_soyad": "Mehmet Yılmaz",
+        "kiraya_veren_tc": "38291048214",
+        "kiraya_veren_adres": "Moda Cad. 3/1 Kadıköy / İSTANBUL",
+        "kiraci_ad_soyad": "Ali Demir",
+        "kiraci_tc": "19482910382",
+        "kiraci_adres": "Bahariye Cad. 40/2 Kadıköy / İSTANBUL",
+        "tasinmaz_adresi": "Bahariye Cad. 40/2 Kadıköy / İSTANBUL",
+        "iban": "TR120006100511123456789012",
+    }
+
+
+def _validate_temerrut(case_params, pii):
+    template = doc_service.get_template(TEMERRUT_TEMPLATE_ID)
+    return doc_service.validate_fields(template, case_params, pii)
+
+
+def test_temerrut_template_file_and_tags():
+    path = doc_service.template_path(TEMERRUT_TEMPLATE_ID)
+    assert path.is_file()
+    with zipfile.ZipFile(path) as zf:
+        xml = zf.read("word/document.xml").decode("utf-8")
+    for text in re.findall(r"<w:t(?:\s[^>]*)?>([^<]*)</w:t>", xml):
+        assert text.count("{{") == text.count("}}"), f"Split tag in run: {text!r}"
+    declared = DocxTemplate(str(path)).get_undeclared_template_variables()
+    context = doc_service.build_render_context(TEMERRUT_TEMPLATE_ID, _temerrut_case_params(), _temerrut_pii())
+    assert declared == set(context)
+
+
+def test_temerrut_committed_docx_matches_layout():
+    layout = get_layout(TEMERRUT_TEMPLATE_ID)
+    doc = Document(str(doc_service.template_path(TEMERRUT_TEMPLATE_ID)))
+    actual = [[[r.text, bool(r.bold)] for r in p.runs] for p in doc.paragraphs]
+    expected = [[[text, bold] for text, bold in spec.segments] for spec in layout.paragraphs]
+    assert actual == expected
+    assert doc.sections[0].footer.paragraphs[0].text == FOOTER_TEXT
+
+
+def test_temerrut_addresses_are_pii_not_case_params():
+    template = doc_service.get_template(TEMERRUT_TEMPLATE_ID)
+    case_names = {f.field_name for f in template.case_param_fields}
+    pii_names = {f.field_name for f in template.pii_fields}
+    assert not any("adres" in name or name == "iban" for name in case_names)
+    assert {"kiraya_veren_adres", "kiraci_adres", "tasinmaz_adresi", "iban"} <= pii_names
+
+
+def test_temerrut_valid_payload_passes():
+    assert not _validate_temerrut(_temerrut_case_params(), _temerrut_pii()).has_errors
+
+
+@pytest.mark.parametrize("sure", [29, 10, 0, 30.5, 366, "29"])
+def test_temerrut_payment_period_below_tbk_315_minimum_rejected(sure):
+    case_params = _temerrut_case_params()
+    case_params["odeme_suresi_gun"] = sure
+    errors = _validate_temerrut(case_params, _temerrut_pii())
+    assert errors.invalid == ["odeme_suresi_gun"]
+
+
+@pytest.mark.parametrize("sure", [30, "45", 365])
+def test_temerrut_payment_period_accepted(sure):
+    case_params = _temerrut_case_params()
+    case_params["odeme_suresi_gun"] = sure
+    assert not _validate_temerrut(case_params, _temerrut_pii()).has_errors
+
+
+@pytest.mark.parametrize("field", ["kira_tutari", "odenmeyen_toplam_tutar"])
+def test_temerrut_non_positive_amount_rejected(field):
+    case_params = _temerrut_case_params()
+    case_params[field] = 0
+    errors = _validate_temerrut(case_params, _temerrut_pii())
+    assert errors.invalid == [field]
+    assert "36000" not in errors.to_message()
+
+
+def test_temerrut_empty_month_list_rejected():
+    case_params = _temerrut_case_params()
+    case_params["gecikilen_aylar"] = []
+    errors = _validate_temerrut(case_params, _temerrut_pii())
+    assert errors.invalid == ["gecikilen_aylar"]
+
+
+@pytest.mark.parametrize("field", ["kiraya_veren_adres", "kiraci_adres", "tasinmaz_adresi", "iban"])
+def test_temerrut_missing_required_pii(field):
+    pii = _temerrut_pii()
+    del pii[field]
+    errors = _validate_temerrut(_temerrut_case_params(), pii)
+    assert errors.missing == [field]
+
+
+@pytest.mark.asyncio
+async def test_temerrut_docx_and_pdf_render_all_values(temp_storage):
+    pii = _temerrut_pii()
+    file_id, *_ = await _generate(_temerrut_case_params(), pii, template_id=TEMERRUT_TEMPLATE_ID)
+    docx_text = re.sub(r"\s+", " ", _document_text(temp_storage / f"{file_id}.docx"))
+    pdf_text = _pdf_text(temp_storage / f"{file_id}.pdf")
+
+    for text in (docx_text, pdf_text):
+        assert "{{" not in text
+        for key, value in pii.items():
+            if key != "iban":
+                assert value in text
+        for expected in (
+            "İstanbul Nöbetçi Noterliğine",
+            "KEŞİDECİ (Kiraya Veren):",
+            "MUHATAP (Kiracı):",
+            "01.03.2024",
+            "18.000,00 TL",
+            "Eylül 2026, Ekim 2026",
+            "36.000,00 TL",
+            "30 gün",
+            "315. maddesi",
+            "TR12 0006 1005 1112 3456 7890 12",
+            "avukatlık hizmeti vermez",
+        ):
+            assert expected in text
+    assert not list(temp_storage.glob("*.tmp"))
+
+
+@pytest.mark.asyncio
+async def test_temerrut_month_list_from_llm_joined(temp_storage):
+    case_params = _temerrut_case_params()
+    case_params["gecikilen_aylar"] = ["Eylül 2026", "Ekim 2026"]
+    case_params["odeme_suresi_gun"] = "45"
+    file_id, *_ = await _generate(case_params, _temerrut_pii(), template_id=TEMERRUT_TEMPLATE_ID)
+    text = _document_text(temp_storage / f"{file_id}.docx")
+    assert "Eylül 2026, Ekim 2026" in text
+    assert "45 gün" in text
+    assert "[" not in text
+
+
+@pytest.mark.asyncio
+async def test_temerrut_optional_tc_omitted_cleanly(temp_storage):
+    pii = _temerrut_pii()
+    del pii["kiraci_tc"]
+    del pii["kiraya_veren_tc"]
+    file_id, *_ = await _generate(_temerrut_case_params(), pii, template_id=TEMERRUT_TEMPLATE_ID)
+    text = _document_text(temp_storage / f"{file_id}.docx")
+    assert "T.C. Kimlik No" not in text
+    assert "None" not in text
+
+
+@pytest.mark.asyncio
+async def test_temerrut_pdf_metadata_and_logs_have_no_pii(temp_storage, caplog):
+    pii = _temerrut_pii()
+    with caplog.at_level("DEBUG"):
+        file_id, *_ = await _generate(_temerrut_case_params(), pii, template_id=TEMERRUT_TEMPLATE_ID)
+    metadata = PdfReader(str(temp_storage / f"{file_id}.pdf")).metadata
+    assert metadata.title == "Kira Bedelinin Ödenmemesi Nedeniyle Temerrüt İhtarnamesi"
+    flat = " ".join(str(v) for v in metadata.values())
+    for value in pii.values():
+        assert value not in caplog.text
+        for token in value.split():
+            if len(token) > 3:
+                assert token not in flat

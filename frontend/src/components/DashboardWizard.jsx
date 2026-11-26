@@ -7,7 +7,7 @@ import {
 import { ApiError, downloadUrl, generateDocument } from '../lib/api';
 import {
   KIRA_ARTIS_TEMPLATE_ID, READY_TEMPLATE_IDS, formatIban, formatRemaining, formatTrDate,
-  isBlank, kiraArtisCrossErrors, maskSensitive, parseFieldErrorMessage, parseNumber, prefillFromExtracted,
+  crossFieldErrors, isBlank, maskSensitive, parseFieldErrorMessage, parseNumber, prefillFromExtracted,
   toPayload, validateFields,
 } from '../lib/fields';
 import { saveDocument } from '../lib/documentStore';
@@ -29,7 +29,7 @@ const currentTime = () => Date.now();
 const caseErrorsFor = (template, values) => ({
   ...validateFields(template.case_param_fields, values),
   // Cross-field rules only once the individual values are valid (same order as the backend)
-  ...(template.template_id === KIRA_ARTIS_TEMPLATE_ID ? kiraArtisCrossErrors(values) : {}),
+  ...crossFieldErrors(template.template_id, values),
 });
 
 const StepIndicator = ({ current, maxReached, onGo }) => (

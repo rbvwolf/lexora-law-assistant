@@ -204,6 +204,7 @@ Yanıtını SADECE şu JSON formatında ver:
     "uyusmazlik_turu": "<string>",
     "kira_tutari": <number|null>,
     "gecikilen_aylar": [<string>, ...],
+    "odenmeyen_toplam_tutar": <number|null>,
     "odeme_suresi_gun": <number|null>,
     "urun_adi": "<string|null>",
     "satin_alma_tutari": <number|null>,

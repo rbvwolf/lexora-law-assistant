@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, BookOpen, Briefcase, Building2, Clock, FileText, Info, Landmark, MessageSquare, Scale, ShoppingBag, Wallet } from 'lucide-react';
-import { KIRA_ARTIS_TEMPLATE_ID } from '../lib/fields';
+import { KIRA_ARTIS_TEMPLATE_ID, TEMERRUT_TEMPLATE_ID } from '../lib/fields';
 
 /**
  * Fixed, rule-based guides for the in-scope topics (roadmap idea 4, "1-2 sabit akış").
@@ -46,7 +46,7 @@ const GUIDES = [
       'Süre sonunda ödeme yapılmazsa izlenecek yol için bir avukata danışın.',
     ],
     question: 'Kiracım iki aydır kira ödemiyor, ne yapabilirim?',
-    templateId: null, // kira_ihtarname_temerrut is still a placeholder on the backend
+    templateId: TEMERRUT_TEMPLATE_ID,
   },
   {
     id: 'ayipli-mal',

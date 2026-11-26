@@ -1,6 +1,7 @@
 import { Eye } from 'lucide-react';
 import {
   KIRA_ARTIS_TEMPLATE_ID,
+  TEMERRUT_TEMPLATE_ID,
   formatTrDate,
   formatTrNumber,
   hesaplaKiraArtisi,
@@ -12,7 +13,7 @@ import { DISCLAIMER_TEXT } from '../../lib/constants';
 
 /**
  * Live A4 preview built in the browser from the form values. Nothing here is sent anywhere.
- * The kira artışı text mirrors backend/app/services/doc_layouts.py; the downloaded file is the
+ * The kira artışı and temerrüt texts mirror backend/app/services/doc_layouts.py; the downloaded file is the
  * authoritative version.
  */
 
@@ -56,6 +57,42 @@ function KiraArtisPreview({ caseValues: c, piiValues: p }) {
   );
 }
 
+function TemerrutPreview({ caseValues: c, piiValues: p }) {
+  const money = (v) => (Number.isFinite(parseNumber(v)) ? formatTrNumber(parseNumber(v)) : '');
+  const tc = (v) => (isBlank(v) ? '' : ` (T.C. Kimlik No: ${maskSensitive(v)})`);
+  const date = isBlank(c.kira_baslangic_tarihi) ? '' : formatTrDate(c.kira_baslangic_tarihi);
+  const sure = Number.isFinite(parseNumber(c.odeme_suresi_gun)) ? String(parseNumber(c.odeme_suresi_gun)) : '';
+  const toplam = money(c.odenmeyen_toplam_tutar);
+
+  return (
+    <>
+      <p className="text-center font-bold"><Slot value={c.noter_ili} label="Noterlik ili" /> Nöbetçi Noterliğine</p>
+      <p className="text-center font-bold tracking-[0.3em] my-3">İHTARNAME</p>
+      <p><b>KEŞİDECİ (Kiraya Veren): </b><Slot value={p.kiraya_veren_ad_soyad} label="Kiraya veren adı" />{tc(p.kiraya_veren_tc)}</p>
+      <p><b>Adres: </b><Slot value={p.kiraya_veren_adres} label="Kiraya veren adresi" /></p>
+      <p><b>MUHATAP (Kiracı): </b><Slot value={p.kiraci_ad_soyad} label="Kiracı adı" />{tc(p.kiraci_tc)}</p>
+      <p><b>Adres: </b><Slot value={p.kiraci_adres} label="Kiracı adresi" /></p>
+      <p><b>KİRALANAN: </b><Slot value={p.tasinmaz_adresi} label="Taşınmaz adresi" /></p>
+      <p className="text-justify"><b>KONU: </b>Ödenmeyen kira bedellerinin 6098 sayılı Türk Borçlar Kanunu m. 315 uyarınca verilen süre içinde ödenmesi, aksi halde kira sözleşmesinin feshedileceğinin ihtarıdır.</p>
+      <p className="font-bold mt-2">AÇIKLAMALAR:</p>
+      <p className="indent-6 text-justify">1. Yukarıda adresi belirtilen taşınmaz, <Slot value={date} label="Başlangıç tarihi" /> başlangıç tarihli kira sözleşmesi ile tarafınıza kiralanmıştır. Aylık kira bedeli <Slot value={money(c.kira_tutari)} label="Aylık kira" bold /> <b>TL</b>&apos;dir.</p>
+      <p className="indent-6 text-justify">2. Kira sözleşmesi uyarınca ödenmesi gereken <Slot value={isBlank(c.gecikilen_aylar) ? '' : String(c.gecikilen_aylar).trim()} label="Ödenmeyen aylar" bold /> dönemlerine ait kira bedelleri, muaccel olmasına rağmen tarafınızca ödenmemiştir. Ödenmeyen kira bedellerinin toplamı <Slot value={toplam} label="Toplam borç" bold /> <b>TL</b>&apos;dir.</p>
+      <p className="indent-6 text-justify">3. 6098 sayılı Türk Borçlar Kanunu&apos;nun 315. maddesi uyarınca, kiracı kiralananın tesliminden sonra muaccel olan kira bedelini ödeme borcunu ifa etmezse kiraya veren, kiracıya yazılı olarak bir süre verip bu sürede de ifa etmeme durumunda sözleşmeyi feshedeceğini bildirebilir. Konut ve çatılı işyeri kiralarında bu süre en az otuz gündür ve yazılı bildirimin yapıldığı tarihi izleyen günden itibaren işlemeye başlar.</p>
+      <p className="indent-6 text-justify">4. Açıklanan nedenlerle, ödenmeyen <Slot value={toplam} label="Toplam borç" bold /> <b>TL</b> tutarındaki kira bedelini işbu ihtarnamenin tebliğini izleyen günden itibaren <Slot value={sure} label="Süre" bold /> <b>gün</b> içinde aşağıda belirtilen banka hesabına ödemenizi; bu süre içinde ödeme yapmamanız halinde kira sözleşmesini feshedeceğimi ve tahliye için yasal yollara başvuracağımı ihtar ederim.</p>
+      <p><b>Ödeme Yapılacak Hesap (IBAN): </b><Slot value={isBlank(p.iban) ? '' : maskSensitive(p.iban)} label="IBAN" /></p>
+      <p><b>Hesap Sahibi: </b><Slot value={p.kiraya_veren_ad_soyad} label="Kiraya veren adı" /></p>
+      <p className="font-bold mt-2">SONUÇ:</p>
+      <p className="indent-6 text-justify">İşbu ihtarnamenin bir suretinin muhataba tebliğini, bir suretinin dairenizde saklanmasını ve tebliğ şerhini havi bir suretinin tarafıma verilmesini saygılarımla talep ederim.</p>
+      <div className="text-right mt-3 space-y-0.5">
+        <p>{today()}</p>
+        <p className="font-bold">Keşideci</p>
+        <p><Slot value={p.kiraya_veren_ad_soyad} label="Kiraya veren adı" /></p>
+        <p>İmza</p>
+      </div>
+    </>
+  );
+}
+
 function GenericPreview({ template, caseValues, piiValues }) {
   const show = (field, values) => {
     const raw = values[field.field_name];
@@ -91,6 +128,8 @@ const DocumentPreview = ({ template, caseValues, piiValues }) => (
         <p className="h-full flex items-center justify-center text-slate-400 font-sans text-xs">Önizleme için bir belge türü seçin.</p>
       ) : template.template_id === KIRA_ARTIS_TEMPLATE_ID ? (
         <KiraArtisPreview caseValues={caseValues} piiValues={piiValues} />
+      ) : template.template_id === TEMERRUT_TEMPLATE_ID ? (
+        <TemerrutPreview caseValues={caseValues} piiValues={piiValues} />
       ) : (
         <GenericPreview template={template} caseValues={caseValues} piiValues={piiValues} />
       )}

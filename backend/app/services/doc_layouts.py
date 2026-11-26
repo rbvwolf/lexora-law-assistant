@@ -145,7 +145,108 @@ def _kira_artis_itiraz_ihtarname() -> DocumentLayout:
     )
 
 
-_LAYOUTS = {"kira_artis_itiraz_ihtarname": _kira_artis_itiraz_ihtarname()}
+def _kira_ihtarname_temerrut() -> DocumentLayout:
+    return DocumentLayout(
+        pdf_title="Kira Bedelinin Ödenmemesi Nedeniyle Temerrüt İhtarnamesi",
+        footer=FOOTER_TEXT,
+        paragraphs=[
+            Paragraph([("{{ noter_ili }}", True), (" Nöbetçi Noterliğine", True)], align="center"),
+            Paragraph([("İHTARNAME", True)], align="center"),
+            Paragraph([("KEŞİDECİ (Kiraya Veren): ", True), ("{{ kiraya_veren_ad_soyad }}", False), ("{{ kiraya_veren_tc_ibare }}", False)], align="left"),
+            Paragraph([("Adres: ", True), ("{{ kiraya_veren_adres }}", False)], align="left"),
+            Paragraph([("MUHATAP (Kiracı): ", True), ("{{ kiraci_ad_soyad }}", False), ("{{ kiraci_tc_ibare }}", False)], align="left"),
+            Paragraph([("Adres: ", True), ("{{ kiraci_adres }}", False)], align="left"),
+            Paragraph([("KİRALANAN: ", True), ("{{ tasinmaz_adresi }}", False)], align="left"),
+            Paragraph(
+                [
+                    ("KONU: ", True),
+                    (
+                        "Ödenmeyen kira bedellerinin 6098 sayılı Türk Borçlar Kanunu m. 315 uyarınca verilen süre "
+                        "içinde ödenmesi, aksi halde kira sözleşmesinin feshedileceğinin ihtarıdır.",
+                        False,
+                    ),
+                ]
+            ),
+            Paragraph([("AÇIKLAMALAR:", True)], align="left"),
+            Paragraph(
+                [
+                    ("1. Yukarıda adresi belirtilen taşınmaz, ", False),
+                    ("{{ kira_baslangic_tarihi }}", False),
+                    (" başlangıç tarihli kira sözleşmesi ile tarafınıza kiralanmıştır. Aylık kira bedeli ", False),
+                    ("{{ kira_tutari }}", True),
+                    (" TL'dir.", True),
+                ],
+                first_line_indent=True,
+            ),
+            Paragraph(
+                [
+                    ("2. Kira sözleşmesi uyarınca ödenmesi gereken ", False),
+                    ("{{ gecikilen_aylar }}", True),
+                    (
+                        " dönemlerine ait kira bedelleri, muaccel olmasına rağmen tarafınızca ödenmemiştir. "
+                        "Ödenmeyen kira bedellerinin toplamı ",
+                        False,
+                    ),
+                    ("{{ odenmeyen_toplam_tutar }}", True),
+                    (" TL", True),
+                    ("'dir.", False),
+                ],
+                first_line_indent=True,
+            ),
+            Paragraph(
+                [
+                    (
+                        "3. 6098 sayılı Türk Borçlar Kanunu'nun 315. maddesi uyarınca, kiracı kiralananın tesliminden "
+                        "sonra muaccel olan kira bedelini ödeme borcunu ifa etmezse kiraya veren, kiracıya yazılı "
+                        "olarak bir süre verip bu sürede de ifa etmeme durumunda sözleşmeyi feshedeceğini bildirebilir. "
+                        "Konut ve çatılı işyeri kiralarında bu süre en az otuz gündür ve yazılı bildirimin yapıldığı "
+                        "tarihi izleyen günden itibaren işlemeye başlar.",
+                        False,
+                    ),
+                ],
+                first_line_indent=True,
+            ),
+            Paragraph(
+                [
+                    ("4. Açıklanan nedenlerle, ödenmeyen ", False),
+                    ("{{ odenmeyen_toplam_tutar }}", True),
+                    (" TL", True),
+                    (" tutarındaki kira bedelini işbu ihtarnamenin tebliğini izleyen günden itibaren ", False),
+                    ("{{ odeme_suresi_gun }}", True),
+                    (" gün", True),
+                    (
+                        " içinde aşağıda belirtilen banka hesabına ödemenizi; bu süre içinde ödeme yapmamanız "
+                        "halinde kira sözleşmesini feshedeceğimi ve tahliye için yasal yollara başvuracağımı ihtar ederim.",
+                        False,
+                    ),
+                ],
+                first_line_indent=True,
+            ),
+            Paragraph([("Ödeme Yapılacak Hesap (IBAN): ", True), ("{{ iban }}", False)], align="left"),
+            Paragraph([("Hesap Sahibi: ", True), ("{{ kiraya_veren_ad_soyad }}", False)], align="left"),
+            Paragraph([("SONUÇ:", True)], align="left"),
+            Paragraph(
+                [
+                    (
+                        "İşbu ihtarnamenin bir suretinin muhataba tebliğini, bir suretinin dairenizde saklanmasını ve "
+                        "tebliğ şerhini havi bir suretinin tarafıma verilmesini saygılarımla talep ederim.",
+                        False,
+                    )
+                ],
+                first_line_indent=True,
+            ),
+            Paragraph([("{{ belge_tarihi }}", False)], align="right"),
+            Paragraph([("Keşideci", True)], align="right"),
+            Paragraph([("{{ kiraya_veren_ad_soyad }}", False)], align="right"),
+            Paragraph([("İmza", False)], align="right"),
+        ],
+    )
+
+
+_LAYOUTS = {
+    "kira_artis_itiraz_ihtarname": _kira_artis_itiraz_ihtarname(),
+    "kira_ihtarname_temerrut": _kira_ihtarname_temerrut(),
+}
 
 
 def get_layout(template_id: str) -> Optional[DocumentLayout]:
