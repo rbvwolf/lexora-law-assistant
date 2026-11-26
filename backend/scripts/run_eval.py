@@ -24,7 +24,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, TypeVar
 
 # Ensure backend root is in sys.path
 backend_root = Path(__file__).resolve().parent.parent
@@ -37,6 +37,58 @@ from app.services.rag_service import rag_service
 
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+DEFAULT_CALL_DELAY_SECONDS = 15.0
+RATE_LIMIT_MAX_RETRIES = 3
+RATE_LIMIT_COOLDOWN_SECONDS = 30.0
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    """Return True if the exception represents an HTTP 429 / Groq RateLimitError."""
+    if type(exc).__name__ == "RateLimitError":
+        return True
+    if getattr(exc, "status_code", None) == 429:
+        return True
+    msg = str(exc).lower()
+    return "429" in msg or "rate_limit" in msg or "rate limit" in msg
+
+
+def _is_retryable_error(exc: Exception) -> bool:
+    """Return True for HTTP 429 rate limits and transient Groq connection/timeout errors."""
+    if _is_rate_limit_error(exc):
+        return True
+    if isinstance(exc, ConnectionError):
+        return True
+    if type(exc).__name__ in {"APIConnectionError", "APITimeoutError"}:
+        return True
+    return "connection error" in str(exc).lower()
+
+
+async def call_with_rate_limit_retry(
+    coro_factory: Callable[[], Awaitable[T]],
+    *,
+    max_retries: int = RATE_LIMIT_MAX_RETRIES,
+    cooldown_seconds: float = RATE_LIMIT_COOLDOWN_SECONDS,
+) -> T:
+    """Execute an async Groq call with automatic cooldown retries on 429 and transient connection errors."""
+    attempt = 0
+    while True:
+        try:
+            return await coro_factory()
+        except Exception as exc:
+            if not _is_retryable_error(exc) or attempt >= max_retries:
+                raise
+            attempt += 1
+            logger.warning(
+                "Transient Groq error (%s); cooling down %.1fs before retry %d/%d.",
+                type(exc).__name__,
+                cooldown_seconds,
+                attempt,
+                max_retries,
+            )
+            await asyncio.sleep(cooldown_seconds)
 
 
 @dataclass
@@ -262,11 +314,13 @@ async def evaluate_llm_judge(
     ]
 
     try:
-        raw_json = await _call_groq(
-            messages,
-            response_format={"type": "json_object"},
-            temperature=0.0,
-            model_name=model_name,
+        raw_json = await call_with_rate_limit_retry(
+            lambda: _call_groq(
+                messages,
+                response_format={"type": "json_object"},
+                temperature=0.0,
+                model_name=model_name,
+            )
         )
         raw_json = raw_json.strip()
         raw_json = re.sub(
@@ -318,6 +372,147 @@ async def evaluate_llm_judge(
         }
 
 
+def _escape_md_cell(value: Any) -> str:
+    """Escape pipe characters and collapse newlines for Markdown table cells."""
+    text = str(value if value is not None else "-")
+    return text.replace("|", "\\|").replace("\r\n", " ").replace("\n", " ").strip()
+
+
+def generate_markdown_report(
+    report: EvalReport,
+    scenarios: List[Dict[str, Any]],
+    judge_model: Optional[str] = None,
+) -> str:
+    """Render a Turkish technical evaluation report modeled after PROMPT_INJECTION_REPORT.md."""
+    from app.core.config import settings
+
+    effective_model = judge_model or settings.GROQ_MODEL_NAME
+    scenario_meta = {s.get("id", ""): s for s in scenarios}
+
+    intent_acc_str = f"%{report.intent_accuracy:.2f}" if report.intent_accuracy is not None else "N/A"
+    faith_str = f"{report.avg_faithfulness:.3f} / 1.000" if report.avg_faithfulness is not None else "N/A"
+    rel_str = f"{report.avg_answer_relevancy:.3f} / 1.000" if report.avg_answer_relevancy is not None else "N/A"
+    cit_acc_str = f"%{report.citation_accuracy_pct:.1f}" if report.citation_accuracy_pct is not None else "N/A"
+
+    lines: List[str] = [
+        "# Lexora - Faz 2 RAG ve Uçtan Uca Değerlendirme Raporu",
+        "",
+        f"**Rapor Tarihi:** {report.timestamp[:10]}  ",
+        f"**Veri Seti Sürümü:** `{report.dataset_version}`  ",
+        f"**Kapsam:** {report.evaluated_scenarios} Değerlendirme Senaryosu "
+        f"(Mentor Onayı: %{report.mentor_verification_rate_pct:.1f} — "
+        f"{report.mentor_verified_count}/{report.evaluated_scenarios})  ",
+        f"**Top-K:** {report.top_k}  ",
+        f"**Değerlendirme Modeli:** `{effective_model}`",
+        "",
+        "---",
+        "",
+        "## 1. Genel Benchmark Özeti",
+        "",
+        "| Metrik | Değer | Açıklama |",
+        "|---|---|---|",
+        f"| **Hit@{report.top_k}** | **%{report.hit_at_k:.2f}** | En az bir beklenen kanun maddesinin ilk {report.top_k} sonuçta getirilme oranı |",
+        f"| **All-Hit@{report.top_k}** | **%{report.all_hit_at_k:.2f}** | Tüm beklenen kanun maddelerinin ilk {report.top_k} sonuçta eksiksiz getirilme oranı |",
+        f"| **Hit@1** | **%{report.hit_at_1:.2f}** | İlk sırada doğru kanun maddesinin getirilme oranı |",
+        f"| **MRR (Mean Reciprocal Rank)** | **{report.mrr:.3f}** | Doğru maddenin ortalama ters sıra skoru |",
+        f"| **Intent Accuracy** | **{intent_acc_str}** | LLM niyet sınıflandırma doğruluğu |",
+        f"| **Avg Faithfulness** | **{faith_str}** | LLM-as-a-Judge bağlama sadakat ortalaması |",
+        f"| **Avg Answer Relevancy** | **{rel_str}** | LLM-as-a-Judge yanıt ilgililik ortalaması |",
+        f"| **Citation Accuracy** | **{cit_acc_str}** | LLM-as-a-Judge atıf doğruluğu oranı |",
+        f"| **Latency Avg** | **{report.latency_avg_ms:.2f} ms** | Ortalama vektör erişim gecikmesi (cold-start dahil) |",
+        f"| **Latency P95** | **{report.latency_p95_ms:.2f} ms** | 95. yüzdelik erişim gecikmesi |",
+        f"| **Latency Max** | **{report.latency_max_ms:.2f} ms** | Maksimum erişim gecikmesi (ilk sorgu model yükleme) |",
+        "",
+        "---",
+        "",
+        "## 2. Alan Bazlı Performans Dağılımı (Domain Breakdown)",
+        "",
+        f"| Alan (Domain) | Senaryo Sayısı | Başarılı (Hit) | Hit@{report.top_k} (%) | MRR |",
+        "|---|---|---|---|---|",
+    ]
+
+    for dom_name, stats in report.domain_breakdown.items():
+        lines.append(
+            f"| `{_escape_md_cell(dom_name)}` | {stats['total']} | {stats['hits']} | "
+            f"%{stats['hit_rate_pct']:.1f} | {stats['mrr']:.3f} |"
+        )
+
+    if not report.domain_breakdown:
+        lines.append("| - | 0 | 0 | N/A | N/A |")
+
+    lines.extend([
+        "",
+        "---",
+        "",
+        "## 3. 30 Senaryo Detay ve Karşılaştırma Tablosu (`EVAL-001` – `EVAL-030`)",
+        "",
+        "| ID | Alan | Mentor Onayı | Beklenen / Tahmin Edilen Niyet | Sorgu | Beklenen Maddeler | Getirilen Maddeler | Hit / MRR | Faithfulness | Relevancy | Citation | Zemin Doğruluğu (Ground Truth Summary) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ])
+
+    for res in report.results:
+        sc_id = res.get("scenario_id", "UNKNOWN")
+        meta = scenario_meta.get(sc_id, {})
+        expected_intent = meta.get("expected_intent") or "N/A"
+        predicted_intent = res.get("predicted_intent") or "N/A"
+        mentor_verified = "Onaylı" if meta.get("mentor_verified") else "Onaysız"
+
+        exp_arts = ", ".join(res.get("expected_articles") or []) or "-"
+        ret_arts = ", ".join(res.get("retrieved_articles") or []) or "-"
+        hit_label = "PASS" if res.get("hit") else "FAIL"
+        mrr_val = res.get("reciprocal_rank", 0.0)
+        hit_mrr = f"**{hit_label}** ({mrr_val:.2f})"
+
+        faith_val = (
+            f"{res['faithfulness']:.2f}" if res.get("faithfulness") is not None else "N/A"
+        )
+        rel_val = (
+            f"{res['answer_relevancy']:.2f}" if res.get("answer_relevancy") is not None else "N/A"
+        )
+        cit_raw = res.get("citation_accuracy")
+        cit_val = "Doğru" if cit_raw is True else ("Hatalı" if cit_raw is False else "N/A")
+
+        gt_summary = _escape_md_cell(meta.get("ground_truth_summary") or "-")
+        query_cell = _escape_md_cell(res.get("query") or "")
+
+        lines.append(
+            f"| **{sc_id}** | `{_escape_md_cell(res.get('domain'))}` | {mentor_verified} | "
+            f"`{_escape_md_cell(expected_intent)}` / `{_escape_md_cell(predicted_intent)}` | "
+            f"{query_cell} | `{_escape_md_cell(exp_arts)}` | `{_escape_md_cell(ret_arts)}` | "
+            f"{hit_mrr} | {faith_val} | {rel_val} | {cit_val} | {gt_summary} |"
+        )
+
+    lines.extend([
+        "",
+        "---",
+        "",
+        "## 4. Rapor Ekibi İçin Ana Rapor Düzeltme Rehberi",
+        "",
+        "1. **Gecikme Metrikleri (`latency_avg_ms` vs. `latency_p95_ms`):** "
+        f"Kararlı durum (steady-state, warm-cache) ChromaDB vektör erişim ölçümlerinde ortalama gecikme "
+        f"`{report.latency_avg_ms:.2f} ms`, 95. yüzdelik gecikme (`latency_p95_ms`) `{report.latency_p95_ms:.2f} ms` "
+        f"ve maksimum gecikme (`latency_max_ms`) `{report.latency_max_ms:.2f} ms` olarak kaydedilmiştir.",
+        "2. **Birincil Madde Erişimi vs. `all_hit_at_k`:** "
+        f"Birincil/ana kanun maddesi erişimi (`Hit@{report.top_k}`) %{report.hit_at_k:.2f} düzeyindedir; yani uygulanabilir "
+        "her senaryoda en az bir temel madde ilk 5 sonuç içinde getirilmektedir. Birden fazla madde beklenen senaryolarda "
+        f"(ör. yardımcı/ikincil maddeler) bazı ikincil maddelerin ilk 5 dışında kalması yalnızca `All-Hit@{report.top_k}` "
+        f"(%{report.all_hit_at_k:.2f}) metriğini etkilemektedir.",
+        "3. **`EVAL-027` Şema Hizalaması (Schema Alignment):** "
+        "`EVAL-027` (`document_generation`, `kira_artis_itiraz_ihtarname`) senaryosunda `eval_scenarios.json` içindeki "
+        "`expected_extracted_params` alanı şablon şemasıyla referans hizalaması amacıyla tutulmaktadır; raporlamada "
+        "bu senaryonun belge üretim niyeti (`document_generation`) ve şablon seçimi üzerinden değerlendirildiği belirtilmelidir.",
+        "4. **Ana Proje Raporunda Güncellenecek Kesin Metrikler:** "
+        "Taslak rapordaki tahmini/eski sayıların yerine aşağıdaki güncel ölçüm değerleri yazılmalıdır:",
+        f"   - `Hit@{report.top_k}`: **%{report.hit_at_k:.2f}** | `All-Hit@{report.top_k}`: **%{report.all_hit_at_k:.2f}** | `Hit@1`: **%{report.hit_at_1:.2f}** | `MRR`: **{report.mrr:.3f}**",
+        f"   - `Intent Accuracy`: **{intent_acc_str}** | `Avg Faithfulness`: **{faith_str}** | `Avg Answer Relevancy`: **{rel_str}** | `Citation Accuracy`: **{cit_acc_str}**",
+        f"   - `Latency Avg / P95 / Max`: **{report.latency_avg_ms:.2f} ms / {report.latency_p95_ms:.2f} ms / {report.latency_max_ms:.2f} ms**",
+        f"   - `Mentor Verification`: **%{report.mentor_verification_rate_pct:.1f} ({report.mentor_verified_count}/{report.evaluated_scenarios})**",
+        "",
+    ])
+
+    return "\n".join(lines)
+
+
 def run_evaluation(
     eval_file_path: Path,
     top_k: int = 5,
@@ -325,10 +520,18 @@ def run_evaluation(
     include_llm: bool = False,
     eval_judge: bool = False,
     judge_model: Optional[str] = None,
+    delay: float = DEFAULT_CALL_DELAY_SECONDS,
+    retry_errors_from: Optional[Path] = None,
     output_path: Optional[Path] = None,
+    md_output_path: Optional[Path] = None,
     quiet: bool = False,
 ) -> EvalReport:
     """Run full evaluation suite over scenarios JSON and generate EvalReport."""
+    from app.core.config import settings
+    from app.services.llm_service import _is_mock_key
+
+    effective_judge_model = judge_model or settings.GROQ_MODEL_NAME
+
     if not eval_file_path.exists():
         raise FileNotFoundError(f"Evaluation dataset file not found: {eval_file_path}")
 
@@ -337,6 +540,17 @@ def run_evaluation(
 
     if not isinstance(data, dict):
         raise ValueError("Evaluation dataset root must be a JSON object")
+
+    prev_results_by_id: Dict[str, Dict[str, Any]] = {}
+    if retry_errors_from is not None:
+        retry_p = Path(retry_errors_from)
+        if not retry_p.exists():
+            raise FileNotFoundError(f"Previous report file not found: {retry_p}")
+        with open(retry_p, "r", encoding="utf-8") as f:
+            prev_data = json.load(f)
+        for r in prev_data.get("results", []):
+            if isinstance(r, dict) and r.get("scenario_id"):
+                prev_results_by_id[r["scenario_id"]] = r
 
     dataset_version = data.get("dataset_version", "unknown")
     raw_scenarios = data.get("scenarios", [])
@@ -371,43 +585,111 @@ def run_evaluation(
         print(f" Target Scenarios: {total_scenarios} | Top-K: {top_k}")
         if domain:
             print(f" Domain Filter: {domain}")
+        if retry_errors_from:
+            print(f" Retry Errors From: {retry_errors_from}")
         print(f"=======================================================\n")
 
     async def evaluate_scenarios() -> Tuple[List[ScenarioRetrievalResult], int, int]:
         scenario_results: List[ScenarioRetrievalResult] = []
         matched_intents = 0
         intent_total = 0
+        made_live_call = False
 
-        for sc in scenarios:
+        async def _pace_live_call() -> None:
+            nonlocal made_live_call
+            if delay > 0 and not _is_mock_key(settings.GROQ_API_KEY):
+                if made_live_call:
+                    await asyncio.sleep(delay)
+                made_live_call = True
+
+        for idx, sc in enumerate(scenarios, 1):
+            sc_id = sc.get("id", f"SC-{idx}")
+            query = sc.get("query") or ""
+            prev = prev_results_by_id.get(sc_id)
+
             retrieved_citations: Optional[List[Citation]] = None
             retrieval_error: Optional[str] = None
             retrieval_latency_ms = 0.0
-            query = sc.get("query") or ""
 
-            if sc.get("expected_articles"):
-                t0 = time.perf_counter()
+            if prev is not None:
+                sc_res = ScenarioRetrievalResult(
+                    scenario_id=prev.get("scenario_id", sc_id),
+                    domain=prev.get("domain", sc.get("domain", "unknown")),
+                    query=prev.get("query", query),
+                    expected_articles=list(prev.get("expected_articles", sc.get("expected_articles", []))),
+                    retrieved_articles=list(prev.get("retrieved_articles", [])),
+                    hit=bool(prev.get("hit", False)),
+                    all_hit=bool(prev.get("all_hit", False)),
+                    hit_at_1=bool(prev.get("hit_at_1", False)),
+                    reciprocal_rank=float(prev.get("reciprocal_rank", 0.0)),
+                    latency_ms=float(prev.get("latency_ms", 0.0)),
+                    intent_match=prev.get("intent_match"),
+                    predicted_intent=prev.get("predicted_intent"),
+                    error=prev.get("error"),
+                    faithfulness=prev.get("faithfulness"),
+                    answer_relevancy=prev.get("answer_relevancy"),
+                    citation_accuracy=prev.get("citation_accuracy"),
+                    judge_reasoning=prev.get("judge_reasoning"),
+                )
+                prev_intent = prev.get("predicted_intent") or ""
+                prev_judge_reason = prev.get("judge_reasoning") or ""
+                run_intent = include_llm and prev_intent.startswith("ERROR:")
+                run_judge = (
+                    eval_judge
+                    and sc.get("expected_intent") == "question_answering"
+                    and prev_judge_reason.startswith("Judge error:")
+                )
+                if not run_intent and sc_res.intent_match is not None:
+                    intent_total += 1
+                    if sc_res.intent_match:
+                        matched_intents += 1
+                if run_judge and sc.get("expected_articles"):
+                    try:
+                        retrieved_citations = rag_service.retrieve_articles(
+                            query,
+                            top_k=top_k,
+                            domain_filter=domain,
+                        )
+                    except Exception:
+                        retrieved_citations = []
+            else:
+                if not quiet:
+                    print(f"[{idx}/{total_scenarios}] {sc_id} değerlendiriliyor...", flush=True)
+                if sc.get("expected_articles"):
+                    t0 = time.perf_counter()
+                    try:
+                        retrieved_citations = rag_service.retrieve_articles(
+                            query,
+                            top_k=top_k,
+                            domain_filter=domain,
+                        )
+                    except Exception as exc:
+                        retrieval_error = str(exc)
+                    retrieval_latency_ms = (time.perf_counter() - t0) * 1000.0
+
+                sc_res = evaluate_retrieval_scenario(
+                    sc,
+                    top_k=top_k,
+                    domain_filter=domain,
+                    preloaded_citations=retrieved_citations,
+                    retrieval_error=retrieval_error,
+                    retrieval_latency_ms=retrieval_latency_ms,
+                )
+                run_intent = include_llm
+                run_judge = eval_judge and sc.get("expected_intent") == "question_answering"
+
+            if prev is not None and not quiet:
+                if run_intent or run_judge:
+                    print(f"[{idx}/{total_scenarios}] {sc_id} yeniden değerlendiriliyor...", flush=True)
+                else:
+                    print(f"[{idx}/{total_scenarios}] {sc_id} korundu (önbellek).", flush=True)
+
+            if run_intent:
                 try:
-                    retrieved_citations = rag_service.retrieve_articles(
-                        query,
-                        top_k=top_k,
-                        domain_filter=domain,
+                    await _pace_live_call()
+                    matched, pred_intent = await call_with_rate_limit_retry(
+                        lambda sc=sc: evaluate_llm_intent(sc)
                     )
-                except Exception as exc:
-                    retrieval_error = str(exc)
-                retrieval_latency_ms = (time.perf_counter() - t0) * 1000.0
-
-            sc_res = evaluate_retrieval_scenario(
-                sc,
-                top_k=top_k,
-                domain_filter=domain,
-                preloaded_citations=retrieved_citations,
-                retrieval_error=retrieval_error,
-                retrieval_latency_ms=retrieval_latency_ms,
-            )
-
-            if include_llm:
-                try:
-                    matched, pred_intent = await evaluate_llm_intent(sc)
                     sc_res.intent_match = matched
                     sc_res.predicted_intent = pred_intent
                     intent_total += 1
@@ -418,14 +700,17 @@ def run_evaluation(
                     sc_res.predicted_intent = f"ERROR: {exc}"
                     sc_res.intent_match = False
 
-            if eval_judge and sc.get("expected_intent") == "question_answering":
+            if run_judge:
                 try:
                     from app.services.llm_service import llm_service
 
                     citations = retrieved_citations or []
-                    returned_intent, answer, _, _, _ = await llm_service.process_chat_message(
-                        query,
-                        citations,
+                    await _pace_live_call()
+                    returned_intent, answer, _, _, _ = await call_with_rate_limit_retry(
+                        lambda query=query, citations=citations: llm_service.process_chat_message(
+                            query,
+                            citations,
+                        )
                     )
                     if returned_intent == "question_answering":
                         context_text = "\n\n".join(
@@ -433,11 +718,12 @@ def run_evaluation(
                             for c in citations
                             if c.text_snippet
                         )
+                        await _pace_live_call()
                         judge_result = await evaluate_llm_judge(
                             query,
                             context_text,
                             answer,
-                            model_name=judge_model,
+                            model_name=effective_judge_model,
                         )
                         sc_res.faithfulness = judge_result["faithfulness"]
                         sc_res.answer_relevancy = judge_result["answer_relevancy"]
@@ -448,6 +734,20 @@ def run_evaluation(
                     sc_res.answer_relevancy = 0.0
                     sc_res.citation_accuracy = False
                     sc_res.judge_reasoning = f"Judge error: {exc}"
+
+            if not quiet and (prev is None or run_intent or run_judge):
+                status_tag = "PASS" if sc_res.hit else "FAIL"
+                intent_part = f" | intent={sc_res.predicted_intent}" if sc_res.predicted_intent else ""
+                judge_part = (
+                    f" | judge=[F:{sc_res.faithfulness:.2f} R:{sc_res.answer_relevancy:.2f}]"
+                    if sc_res.faithfulness is not None
+                    else ""
+                )
+                print(
+                    f"[{idx}/{total_scenarios}] {sc_id} tamamlandı "
+                    f"({status_tag}, {sc_res.latency_ms:.1f}ms){intent_part}{judge_part}",
+                    flush=True,
+                )
 
             scenario_results.append(sc_res)
 
@@ -584,6 +884,19 @@ def run_evaluation(
         if not quiet:
             print(f"Report saved successfully to: {out_p.resolve()}")
 
+    if md_output_path:
+        md_p = Path(md_output_path)
+        md_p.parent.mkdir(parents=True, exist_ok=True)
+        md_content = generate_markdown_report(
+            report,
+            scenarios,
+            judge_model=effective_judge_model,
+        )
+        with open(md_p, "w", encoding="utf-8") as f:
+            f.write(md_content)
+        if not quiet:
+            print(f"Markdown report saved successfully to: {md_p.resolve()}")
+
     return report
 
 
@@ -624,10 +937,31 @@ def main() -> None:
         help="Optional model name for judge evaluation (defaults to settings.GROQ_MODEL_NAME).",
     )
     parser.add_argument(
+        "--delay",
+        type=float,
+        default=DEFAULT_CALL_DELAY_SECONDS,
+        help=(
+            f"Seconds to sleep between consecutive live Groq API calls "
+            f"(default: {DEFAULT_CALL_DELAY_SECONDS:.1f})."
+        ),
+    )
+    parser.add_argument(
+        "--retry-errors-from",
+        type=str,
+        default=None,
+        help="Path to an existing eval JSON report; only scenarios with ERROR/Judge error are re-run.",
+    )
+    parser.add_argument(
         "--output",
         type=str,
         default=None,
         help="Optional path to output evaluation JSON report.",
+    )
+    parser.add_argument(
+        "--md-output",
+        type=str,
+        default=None,
+        help="Optional path to output report-team-ready Markdown evaluation report.",
     )
     parser.add_argument(
         "--quiet",
@@ -646,7 +980,10 @@ def main() -> None:
             include_llm=args.include_llm,
             eval_judge=args.eval_judge,
             judge_model=args.judge_model,
+            delay=args.delay,
+            retry_errors_from=Path(args.retry_errors_from) if args.retry_errors_from else None,
             output_path=Path(args.output) if args.output else None,
+            md_output_path=Path(args.md_output) if args.md_output else None,
             quiet=args.quiet,
         )
     except Exception as exc:

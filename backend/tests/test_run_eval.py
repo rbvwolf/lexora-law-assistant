@@ -364,6 +364,7 @@ def test_run_evaluation_integration_uses_one_loop_and_routes_judge_by_intent(tmp
             include_llm=True,
             eval_judge=True,
             judge_model="integration-judge-model",
+            delay=0.0,
             quiet=True,
         )
 
@@ -562,3 +563,507 @@ async def test_evaluate_llm_judge_default_model_name_is_none():
         mock_call.assert_awaited_once()
         _, kwargs = mock_call.call_args
         assert kwargs.get("model_name") is None
+
+
+def test_run_evaluation_delay_pacing_between_live_calls(tmp_path):
+    """Verify run_evaluation sleeps `delay` seconds between consecutive live Groq calls."""
+    eval_file = tmp_path / "pacing_scenarios.json"
+    eval_file.write_text(
+        json.dumps(
+            {
+                "dataset_version": "test-pacing",
+                "scenarios": [
+                    {
+                        "id": "EVAL-001",
+                        "domain": "kira_hukuku",
+                        "query": "Kira artış oranı nedir?",
+                        "expected_intent": "question_answering",
+                        "expected_articles": ["TBK-344"],
+                    },
+                    {
+                        "id": "EVAL-002",
+                        "domain": "out_of_scope",
+                        "query": "Boşanma davası nasıl açılır?",
+                        "expected_intent": "out_of_scope",
+                        "expected_articles": [],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    mock_citations = [
+        Citation(article_id="TBK-344", law_name="TBK", text_snippet="TÜFE sınırı."),
+    ]
+    judge_result = {
+        "faithfulness": 0.95,
+        "answer_relevancy": 0.90,
+        "citation_accuracy": True,
+        "reasoning": "Doğru.",
+    }
+    sleep_calls = []
+
+    async def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    with (
+        patch("app.core.config.settings.GROQ_API_KEY", "gsk_real_pacing_key"),
+        patch("app.core.config.settings.GROQ_MODEL_NAME", "qwen/qwen3.8-27b"),
+        patch("scripts.run_eval.rag_service.retrieve_articles", return_value=mock_citations),
+        patch(
+            "scripts.run_eval.evaluate_llm_intent",
+            new_callable=AsyncMock,
+            side_effect=[(True, "question_answering"), (True, "out_of_scope")],
+        ),
+        patch(
+            "app.services.llm_service.llm_service.process_chat_message",
+            new_callable=AsyncMock,
+            return_value=("question_answering", "TBK-344 uygulanır.", {}, [], None),
+        ),
+        patch(
+            "scripts.run_eval.evaluate_llm_judge",
+            new_callable=AsyncMock,
+            return_value=judge_result,
+        ) as mock_judge,
+        patch("scripts.run_eval.asyncio.sleep", side_effect=fake_sleep),
+    ):
+        run_evaluation(
+            eval_file_path=eval_file,
+            include_llm=True,
+            eval_judge=True,
+            delay=15.0,
+            quiet=True,
+        )
+
+    # Live calls: intent(1) -> process_chat(1) -> judge(1) -> intent(2) = 4 calls -> 3 sleeps
+    assert sleep_calls == [15.0, 15.0, 15.0]
+    mock_judge.assert_awaited_once()
+    assert mock_judge.call_args.kwargs.get("model_name") == "qwen/qwen3.8-27b"
+
+
+@pytest.mark.asyncio
+async def test_evaluate_llm_judge_recovers_after_rate_limit_error():
+    """Verify evaluate_llm_judge retries on HTTP 429 / RateLimitError with 30s cooldown."""
+    class RateLimitError(Exception):
+        status_code = 429
+
+    valid_json = json.dumps(
+        {
+            "faithfulness": 0.92,
+            "answer_relevancy": 0.94,
+            "citation_accuracy": True,
+            "reasoning": "429 sonrası kurtarıldı.",
+        }
+    )
+    sleep_calls = []
+
+    async def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    with (
+        patch("app.core.config.settings.GROQ_API_KEY", "gsk_real_test_key"),
+        patch(
+            "app.services.llm_service._call_groq",
+            new_callable=AsyncMock,
+            side_effect=[
+                RateLimitError("Error code: 429 - Rate limit reached"),
+                RateLimitError("Error code: 429 - Rate limit reached"),
+                valid_json,
+            ],
+        ) as mock_call,
+        patch("scripts.run_eval.asyncio.sleep", side_effect=fake_sleep),
+    ):
+        res = await evaluate_llm_judge("Soru", "Bağlam", "Yanıt")
+
+    assert mock_call.await_count == 3
+    assert sleep_calls == [30.0, 30.0]
+    assert res["faithfulness"] == 0.92
+    assert res["citation_accuracy"] is True
+
+
+def test_run_evaluation_recovers_from_429_in_intent_and_chat(tmp_path):
+    """Verify run_evaluation retries 429 errors in intent and chat without failing scenarios."""
+    class RateLimitError(Exception):
+        status_code = 429
+
+    eval_file = tmp_path / "retry_scenarios.json"
+    eval_file.write_text(
+        json.dumps(
+            {
+                "dataset_version": "test-retry",
+                "scenarios": [
+                    {
+                        "id": "EVAL-001",
+                        "domain": "kira_hukuku",
+                        "query": "Kira artış oranı nedir?",
+                        "expected_intent": "question_answering",
+                        "expected_articles": ["TBK-344"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    mock_citations = [
+        Citation(article_id="TBK-344", law_name="TBK", text_snippet="TÜFE sınırı."),
+    ]
+    sleep_calls = []
+
+    async def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    with (
+        patch("app.core.config.settings.GROQ_API_KEY", "gsk_real_retry_key"),
+        patch("scripts.run_eval.rag_service.retrieve_articles", return_value=mock_citations),
+        patch(
+            "scripts.run_eval.evaluate_llm_intent",
+            new_callable=AsyncMock,
+            side_effect=[RateLimitError("429 TPM"), (True, "question_answering")],
+        ),
+        patch(
+            "app.services.llm_service.llm_service.process_chat_message",
+            new_callable=AsyncMock,
+            side_effect=[
+                RateLimitError("429 TPM"),
+                ("question_answering", "TBK-344 uygulanır.", {}, [], None),
+            ],
+        ),
+        patch(
+            "scripts.run_eval.evaluate_llm_judge",
+            new_callable=AsyncMock,
+            return_value={
+                "faithfulness": 0.9,
+                "answer_relevancy": 0.9,
+                "citation_accuracy": True,
+                "reasoning": "Başarılı.",
+            },
+        ),
+        patch("scripts.run_eval.asyncio.sleep", side_effect=fake_sleep),
+    ):
+        report = run_evaluation(
+            eval_file_path=eval_file,
+            include_llm=True,
+            eval_judge=True,
+            delay=0.0,
+            quiet=True,
+        )
+
+    assert sleep_calls == [30.0, 30.0]
+    assert report.intent_accuracy == 100.0
+    assert report.results[0]["intent_match"] is True
+    assert report.results[0]["faithfulness"] == 0.9
+
+
+def test_run_evaluation_md_output_with_llm_and_without_llm(tmp_path):
+    """Verify --md-output generates all 4 sections cleanly with populated or None metrics."""
+    eval_file = tmp_path / "md_scenarios.json"
+    eval_file.write_text(
+        json.dumps(
+            {
+                "dataset_version": "2.0.0-phase2",
+                "scenarios": [
+                    {
+                        "id": "EVAL-001",
+                        "domain": "kira_hukuku",
+                        "query": "Kiracım kirayı ödemiyor | ne yapmalıyım?",
+                        "expected_intent": "question_answering",
+                        "expected_articles": ["TBK-315"],
+                        "ground_truth_summary": "TBK Madde 315 uyarınca en az 30 gün süre verilmelidir.",
+                        "mentor_verified": True,
+                    },
+                    {
+                        "id": "EVAL-027",
+                        "domain": "kira_hukuku",
+                        "query": "Fahiş kira artışına itiraz ihtarnamesi hazırla.",
+                        "expected_intent": "document_generation",
+                        "expected_articles": ["TBK-344"],
+                        "ground_truth_summary": "Sistem document_generation niyetini seçmelidir.",
+                        "mentor_verified": True,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    mock_citations = [
+        Citation(article_id="TBK-315", law_name="TBK", text_snippet="Temerrüt."),
+        Citation(article_id="TBK-344", law_name="TBK", text_snippet="Kira artışı."),
+    ]
+
+    # 1. Retrieval-only (None LLM/judge metrics -> "N/A")
+    md_retrieval_only = tmp_path / "reports" / "eval_retrieval_only.md"
+    with patch("scripts.run_eval.rag_service.retrieve_articles", return_value=mock_citations):
+        run_evaluation(
+            eval_file_path=eval_file,
+            md_output_path=md_retrieval_only,
+            quiet=True,
+        )
+
+    assert md_retrieval_only.exists()
+    content_no_llm = md_retrieval_only.read_text(encoding="utf-8")
+    assert "## 1. Genel Benchmark Özeti" in content_no_llm
+    assert "## 2. Alan Bazlı Performans Dağılımı" in content_no_llm
+    assert "## 3. 30 Senaryo Detay ve Karşılaştırma Tablosu" in content_no_llm
+    assert "## 4. Rapor Ekibi İçin Ana Rapor Düzeltme Rehberi" in content_no_llm
+    assert "| **Intent Accuracy** | **N/A** |" in content_no_llm
+    assert "| **Avg Faithfulness** | **N/A** |" in content_no_llm
+    assert "EVAL-001" in content_no_llm
+    assert "EVAL-027" in content_no_llm
+    assert "TBK Madde 315 uyarınca en az 30 gün süre verilmelidir." in content_no_llm
+    assert "Kiracım kirayı ödemiyor \\| ne yapmalıyım?" in content_no_llm
+
+    # 2. Populated LLM + Judge metrics
+    md_with_llm = tmp_path / "reports" / "eval_full.md"
+    with (
+        patch("scripts.run_eval.rag_service.retrieve_articles", return_value=mock_citations),
+        patch(
+            "scripts.run_eval.evaluate_llm_intent",
+            new_callable=AsyncMock,
+            side_effect=[(True, "question_answering"), (True, "document_generation")],
+        ),
+        patch(
+            "app.services.llm_service.llm_service.process_chat_message",
+            new_callable=AsyncMock,
+            return_value=("question_answering", "TBK-315 uygulanır.", {}, [], None),
+        ),
+        patch(
+            "scripts.run_eval.evaluate_llm_judge",
+            new_callable=AsyncMock,
+            return_value={
+                "faithfulness": 0.91,
+                "answer_relevancy": 0.87,
+                "citation_accuracy": True,
+                "reasoning": "Geçerli.",
+            },
+        ),
+    ):
+        run_evaluation(
+            eval_file_path=eval_file,
+            include_llm=True,
+            eval_judge=True,
+            judge_model="qwen/qwen3.8-27b",
+            delay=0.0,
+            md_output_path=md_with_llm,
+            quiet=True,
+        )
+
+    assert md_with_llm.exists()
+    content_full = md_with_llm.read_text(encoding="utf-8")
+    assert "`qwen/qwen3.8-27b`" in content_full
+    assert "| **Intent Accuracy** | **%100.00** |" in content_full
+    assert "| **Avg Faithfulness** | **0.910 / 1.000** |" in content_full
+    assert "| **Avg Answer Relevancy** | **0.870 / 1.000** |" in content_full
+    assert "| **Citation Accuracy** | **%100.0** |" in content_full
+    assert "cold-start" in content_full
+    assert "all_hit_at_k" in content_full
+    assert "All-Hit@5" in content_full
+    assert "All-Hit@{report.top_k}" not in content_full
+    assert "8.6 saniye" not in content_full
+    assert "EVAL-027" in content_full
+
+
+@pytest.mark.asyncio
+async def test_evaluate_llm_judge_recovers_after_connection_error():
+    """Verify evaluate_llm_judge retries transient APIConnectionError / ConnectionError."""
+    class APIConnectionError(Exception):
+        pass
+
+    valid_json = json.dumps(
+        {
+            "faithfulness": 0.95,
+            "answer_relevancy": 0.90,
+            "citation_accuracy": True,
+            "reasoning": "Bağlantı hatası sonrası kurtarıldı.",
+        }
+    )
+    sleep_calls = []
+
+    async def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    with (
+        patch("app.core.config.settings.GROQ_API_KEY", "gsk_real_test_key"),
+        patch(
+            "app.services.llm_service._call_groq",
+            new_callable=AsyncMock,
+            side_effect=[
+                APIConnectionError("Connection error."),
+                ConnectionError("Reset by peer"),
+                valid_json,
+            ],
+        ) as mock_call,
+        patch("scripts.run_eval.asyncio.sleep", side_effect=fake_sleep),
+    ):
+        res = await evaluate_llm_judge("Soru", "Bağlam", "Yanıt")
+
+    assert mock_call.await_count == 3
+    assert sleep_calls == [30.0, 30.0]
+    assert res["faithfulness"] == 0.95
+    assert res["citation_accuracy"] is True
+
+
+def test_run_evaluation_retry_errors_from_preserves_successes_and_retries_only_errors(tmp_path):
+    """Verify --retry-errors-from only re-runs ERROR / Judge error scenarios and preserves latencies."""
+    eval_file = tmp_path / "scenarios.json"
+    eval_file.write_text(
+        json.dumps(
+            {
+                "dataset_version": "2.0.0-phase2",
+                "scenarios": [
+                    {
+                        "id": "EVAL-001",
+                        "domain": "kira_hukuku",
+                        "query": "Soru 1",
+                        "expected_intent": "question_answering",
+                        "expected_articles": ["TBK-315"],
+                        "ground_truth_summary": "Özet 1",
+                        "mentor_verified": True,
+                    },
+                    {
+                        "id": "EVAL-002",
+                        "domain": "kira_hukuku",
+                        "query": "Soru 2",
+                        "expected_intent": "question_answering",
+                        "expected_articles": ["TBK-344"],
+                        "ground_truth_summary": "Özet 2",
+                        "mentor_verified": True,
+                    },
+                    {
+                        "id": "EVAL-003",
+                        "domain": "borclar_genel",
+                        "query": "Soru 3",
+                        "expected_intent": "question_answering",
+                        "expected_articles": ["TBK-117"],
+                        "ground_truth_summary": "Özet 3",
+                        "mentor_verified": True,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    prev_report = {
+        "dataset_version": "2.0.0-phase2",
+        "results": [
+            {
+                "scenario_id": "EVAL-001",
+                "domain": "kira_hukuku",
+                "query": "Soru 1",
+                "expected_articles": ["TBK-315"],
+                "retrieved_articles": ["TBK-315"],
+                "hit": True,
+                "all_hit": True,
+                "hit_at_1": True,
+                "reciprocal_rank": 1.0,
+                "latency_ms": 72.4,
+                "intent_match": True,
+                "predicted_intent": "question_answering",
+                "error": None,
+                "faithfulness": 0.0,
+                "answer_relevancy": 0.0,
+                "citation_accuracy": False,
+                "judge_reasoning": "Judge error: Connection error.",
+            },
+            {
+                "scenario_id": "EVAL-002",
+                "domain": "kira_hukuku",
+                "query": "Soru 2",
+                "expected_articles": ["TBK-344"],
+                "retrieved_articles": ["TBK-344"],
+                "hit": True,
+                "all_hit": True,
+                "hit_at_1": True,
+                "reciprocal_rank": 1.0,
+                "latency_ms": 88.0,
+                "intent_match": True,
+                "predicted_intent": "question_answering",
+                "error": None,
+                "faithfulness": 1.0,
+                "answer_relevancy": 1.0,
+                "citation_accuracy": True,
+                "judge_reasoning": "Tamamen doğru.",
+            },
+            {
+                "scenario_id": "EVAL-003",
+                "domain": "borclar_genel",
+                "query": "Soru 3",
+                "expected_articles": ["TBK-117"],
+                "retrieved_articles": ["TBK-117"],
+                "hit": True,
+                "all_hit": True,
+                "hit_at_1": True,
+                "reciprocal_rank": 1.0,
+                "latency_ms": 81.0,
+                "intent_match": False,
+                "predicted_intent": "ERROR: Connection error.",
+                "error": None,
+                "faithfulness": 1.0,
+                "answer_relevancy": 0.8,
+                "citation_accuracy": True,
+                "judge_reasoning": "Önceki judge geçerli.",
+            },
+        ],
+    }
+    prev_file = tmp_path / "prev_report.json"
+    prev_file.write_text(json.dumps(prev_report), encoding="utf-8")
+
+    out_json = tmp_path / "updated.json"
+    out_md = tmp_path / "updated.md"
+    mock_citations = [
+        Citation(article_id="TBK-315", law_name="TBK", text_snippet="Temerrüt."),
+    ]
+
+    with (
+        patch("scripts.run_eval.rag_service.retrieve_articles", return_value=mock_citations),
+        patch(
+            "scripts.run_eval.evaluate_llm_intent",
+            new_callable=AsyncMock,
+            return_value=(True, "question_answering"),
+        ) as mock_intent,
+        patch(
+            "app.services.llm_service.llm_service.process_chat_message",
+            new_callable=AsyncMock,
+            return_value=("question_answering", "TBK-315 uygulanır.", {}, [], None),
+        ) as mock_chat,
+        patch(
+            "scripts.run_eval.evaluate_llm_judge",
+            new_callable=AsyncMock,
+            return_value={
+                "faithfulness": 0.9,
+                "answer_relevancy": 0.9,
+                "citation_accuracy": True,
+                "reasoning": "Yeniden değerlendirildi.",
+            },
+        ) as mock_judge,
+    ):
+        report = run_evaluation(
+            eval_file_path=eval_file,
+            include_llm=True,
+            eval_judge=True,
+            delay=0.0,
+            retry_errors_from=prev_file,
+            output_path=out_json,
+            md_output_path=out_md,
+            quiet=True,
+        )
+
+    # Only EVAL-003 needed intent retry; only EVAL-001 needed judge retry
+    assert mock_intent.await_count == 1
+    assert mock_chat.await_count == 1
+    assert mock_judge.await_count == 1
+
+    # Preserved latencies
+    assert report.results[0]["latency_ms"] == 72.4
+    assert report.results[1]["latency_ms"] == 88.0
+    assert report.results[2]["latency_ms"] == 81.0
+
+    # Updated aggregate metrics across all 3 scenarios
+    assert report.intent_accuracy == 100.0
+    assert report.avg_faithfulness == pytest.approx(0.967, abs=0.001)
+    assert report.citation_accuracy_pct == 100.0
+    assert out_json.exists()
+    assert out_md.exists()
